@@ -1,0 +1,54 @@
+# AcendCredit pair allowlist — Tier-1 majors (Devnet)
+# bps_cap: fail quote if all-in vs Pyth mid exceeds this
+
+cluster = "devnet"
+
+[[pairs]]
+id = "SOL/USDC"
+base = "SOL"
+quote = "USDC"
+max_size_usd = 150000
+bps_cap = 2.0
+ltv_bps = 7500
+base_mint = "So11111111111111111111111111111111111111112"
+# Orca Devnet SOL/devUSDC Whirlpool mint B
+quote_mint = "BRjpCHtyQLNCo8gqRUr8jtdAj5AjPYQaoqbvcZiHok1k"
+pyth_base = "Crypto.SOL/USD"
+pyth_quote = "Crypto.USDC/USD"
+orca_fee_bps = 4.0
+# Official Orca Devnet SOL/devUSDC whirlpool
+whirlpool = "3KBZiL2g8C7tiJ32hTv5v3KM7aK9htpqTw4cTXz1HvPt"
+base_decimals = 9
+quote_decimals = 6
+
+[[pairs]]
+id = "SOL/USDT"
+base = "SOL"
+quote = "USDT"
+max_size_usd = 150000
+bps_cap = 2.0
+ltv_bps = 7500
+base_mint = "So11111111111111111111111111111111111111112"
+quote_mint = "EJwZgeZrdC8TXTQewDA4ABmYXybYSYYHRkvemRqH1ABC"
+pyth_base = "Crypto.SOL/USD"
+pyth_quote = "Crypto.USDT/USD"
+orca_fee_bps = 4.0
+whirlpool = ""
+base_decimals = 9
+quote_decimals = 6
+
+[[pairs]]
+id = "USDC/USDT"
+base = "USDC"
+quote = "USDT"
+max_size_usd = 150000
+bps_cap = 2.0
+ltv_bps = 9000
+base_mint = "BRjpCHtyQLNCo8gqRUr8jtdAj5AjPYQaoqbvcZiHok1k"
+quote_mint = "EJwZgeZrdC8TXTQewDA4ABmYXybYSYYHRkvemRqH1ABC"
+pyth_base = "Crypto.USDC/USD"
+pyth_quote = "Crypto.USDT/USD"
+orca_fee_bps = 1.0
+whirlpool = ""
+base_decimals = 6
+quote_decimals = 6

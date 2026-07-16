@@ -1,0 +1,24 @@
+[package]
+name = "acend-api"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "acend-api"
+path = "src/main.rs"
+
+[dependencies]
+acend-core = { workspace = true }
+acend-adapters = { workspace = true }
+acend-quote = { workspace = true }
+acend-composer = { workspace = true }
+acend-book = { workspace = true }
+anyhow = { workspace = true }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { workspace = true }

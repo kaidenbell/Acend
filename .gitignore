@@ -1,0 +1,11 @@
+/target
+**/target
+.env
+.env.*
+!.env.example
+.DS_Store
+*.pem
+.idea
+.vscode
+node_modules
+dist

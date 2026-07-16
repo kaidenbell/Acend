@@ -1,0 +1,12 @@
+[package]
+name = "acend-book"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+acend-core = { workspace = true }
+serde = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

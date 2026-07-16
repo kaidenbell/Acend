@@ -1,0 +1,22 @@
+[package]
+name = "acend-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "acend-cli"
+path = "src/main.rs"
+
+[dependencies]
+acend-core = { workspace = true }
+acend-adapters = { workspace = true }
+acend-quote = { workspace = true }
+acend-composer = { workspace = true }
+acend-book = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+solana-sdk = { workspace = true }

@@ -1,0 +1,18 @@
+[package]
+name = "acend-composer"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+acend-core = { workspace = true }
+acend-quote = { workspace = true }
+acend-adapters = { workspace = true }
+anyhow = { workspace = true }
+base64 = { workspace = true }
+bincode = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+solana-client = { workspace = true }
+solana-sdk = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }

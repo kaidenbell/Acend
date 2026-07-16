@@ -1,0 +1,47 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/acend-core",
+    "crates/acend-adapters",
+    "crates/acend-quote",
+    "crates/acend-composer",
+    "crates/acend-book",
+    "crates/acend-api",
+    "crates/acend-cli",
+]
+default-members = ["crates/acend-cli", "crates/acend-api"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["AcendCredit"]
+
+[workspace.dependencies]
+acend-core = { path = "crates/acend-core" }
+acend-adapters = { path = "crates/acend-adapters" }
+acend-quote = { path = "crates/acend-quote" }
+acend-composer = { path = "crates/acend-composer" }
+acend-book = { path = "crates/acend-book" }
+
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+toml = "0.8"
+clap = { version = "4", features = ["derive", "env"] }
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors", "fs"] }
+solana-sdk = "2.2"
+solana-client = "2.2"
+bincode = "1.3"
+bs58 = "0.5"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+orca_whirlpools = "5.0.0"
+sha2 = "0.10"

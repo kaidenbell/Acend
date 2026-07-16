@@ -1,0 +1,14 @@
+[package]
+name = "acend-quote"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+acend-core = { workspace = true }
+acend-adapters = { workspace = true }
+acend-book = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
