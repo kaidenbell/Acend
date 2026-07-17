@@ -120,15 +120,18 @@ export function subscribeAcendQuotes(opts: {
   pair: string
   amountUsd: number
   intervalMs?: number
+  sellBase?: boolean
   onTick: (tick: AcendTick) => void
   onError?: (err: string) => void
   onStatus?: (msg: string) => void
 }): () => void {
   const intervalMs = Math.min(10_000, Math.max(1_000, opts.intervalMs ?? 2_000))
+  const sellBase = opts.sellBase ?? true
   const url = new URL(`${wsBase()}/ws/quotes`)
   url.searchParams.set("pair", opts.pair)
   url.searchParams.set("amount_usd", String(opts.amountUsd))
   url.searchParams.set("interval_ms", String(intervalMs))
+  url.searchParams.set("sell_base", String(sellBase))
   const key = apiKey()
   if (key) url.searchParams.set("key", key)
 
@@ -149,6 +152,7 @@ export function subscribeAcendQuotes(opts: {
           pair: opts.pair,
           amount_usd: opts.amountUsd,
           interval_ms: intervalMs,
+          sell_base: sellBase,
         }),
       )
     }
