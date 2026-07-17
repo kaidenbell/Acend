@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use tokio::time::{interval, MissedTickBehavior};
 use tracing::{info, warn};
 
+use crate::auth::{extract_api_key, unauthorized};
 use crate::AppState;
 
 const DEFAULT_INTERVAL_MS: u64 = 2_000;
@@ -23,6 +24,9 @@ pub struct WsQuery {
     amount_usd: Option<f64>,
     #[serde(default)]
     interval_ms: Option<u64>,
+    /// API key for browser WebSockets (browsers cannot set custom WS headers).
+    #[serde(default)]
+    key: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -92,8 +96,14 @@ pub async fn ws_quotes(
     ws: WebSocketUpgrade,
     State(st): State<AppState>,
     Query(q): Query<WsQuery>,
+    headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
+    let provided = extract_api_key(&headers, q.key.as_deref());
+    if !st.auth.check_key(provided.as_deref()) {
+        return unauthorized();
+    }
     ws.on_upgrade(move |socket| handle_socket(socket, st, q))
+        .into_response()
 }
 
 async fn handle_socket(socket: WebSocket, st: AppState, boot: WsQuery) {

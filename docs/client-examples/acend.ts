@@ -1,14 +1,19 @@
 /**
- * Drop into your Vercel/Next app (e.g. lib/acend.ts).
+ * Drop into your Next/Vercel app.
  *
- * Env:
- *   NEXT_PUBLIC_ACEND_API_URL=https://YOUR-SERVICE.up.railway.app
+ * SECURITY (important):
+ * - Put the Railway URL + API key in *server* env only when possible:
+ *     ACEND_API_URL=https://….up.railway.app
+ *     ACEND_API_KEY=…          (NOT NEXT_PUBLIC_)
+ * - Call Railway from Next Route Handlers (`app/api/acend/...`) so the key
+ *   never ships to the browser.
+ * - Browser WebSockets cannot set headers; if you must connect WS from the
+ *   client, pass ?key= (weaker — anyone who opens DevTools sees it). Prefer
+ *   a server proxy or accept that risk for testing only.
  *
- * REST (compose once, when user clicks swap):
- *   const swap = await fetchAcendSwap({ pair, amountUsd, payer })
- *
- * Live quotes (WebSocket — do NOT poll /quote from Vercel):
- *   const stop = subscribeAcendQuotes({ pair, amountUsd, onTick })
+ * Client-visible (weaker) env for quick tests:
+ *   NEXT_PUBLIC_ACEND_API_URL=…
+ *   NEXT_PUBLIC_ACEND_API_KEY=…
  */
 
 export type AcendQuote = {
@@ -46,14 +51,26 @@ export type AcendSwapPayload = {
 }
 
 function apiBase(): string {
-  const base = process.env.NEXT_PUBLIC_ACEND_API_URL?.replace(/\/$/, "")
-  if (!base) throw new Error("Set NEXT_PUBLIC_ACEND_API_URL to your Railway URL")
+  const base = (
+    process.env.ACEND_API_URL ||
+    process.env.NEXT_PUBLIC_ACEND_API_URL ||
+    ""
+  ).replace(/\/$/, "")
+  if (!base) throw new Error("Set ACEND_API_URL (server) or NEXT_PUBLIC_ACEND_API_URL")
   return base
 }
 
+function apiKey(): string | undefined {
+  return process.env.ACEND_API_KEY || process.env.NEXT_PUBLIC_ACEND_API_KEY || undefined
+}
+
+function authHeaders(): HeadersInit {
+  const key = apiKey()
+  return key ? { "X-Acend-Key": key } : {}
+}
+
 function wsBase(): string {
-  const http = apiBase()
-  return http.replace(/^http/, "ws")
+  return apiBase().replace(/^http/, "ws")
 }
 
 export async function fetchAcendQuote(opts: {
@@ -66,12 +83,11 @@ export async function fetchAcendQuote(opts: {
     amount_usd: String(opts.amountUsd),
     sell_base: String(opts.sellBase ?? true),
   })
-  const res = await fetch(`${apiBase()}/quote?${q}`)
+  const res = await fetch(`${apiBase()}/quote?${q}`, { headers: authHeaders() })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
-/** Call only when the user confirms a swap — builds a partially signed tx. */
 export async function fetchAcendSwap(opts: {
   pair: string
   amountUsd: number
@@ -86,7 +102,7 @@ export async function fetchAcendSwap(opts: {
     path: opts.path ?? "lfrs",
     strict: String(opts.strict ?? true),
   })
-  const res = await fetch(`${apiBase()}/swap?${q}`)
+  const res = await fetch(`${apiBase()}/swap?${q}`, { headers: authHeaders() })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
@@ -98,10 +114,6 @@ export type AcendTick = {
   ts_ms: number
 }
 
-/**
- * Live quote + Pyth prices over WebSocket (default every 2s).
- * Returns an unsubscribe function.
- */
 export function subscribeAcendQuotes(opts: {
   pair: string
   amountUsd: number
@@ -115,6 +127,8 @@ export function subscribeAcendQuotes(opts: {
   url.searchParams.set("pair", opts.pair)
   url.searchParams.set("amount_usd", String(opts.amountUsd))
   url.searchParams.set("interval_ms", String(intervalMs))
+  const key = apiKey()
+  if (key) url.searchParams.set("key", key)
 
   let ws: WebSocket | null = null
   let closed = false
@@ -149,8 +163,6 @@ export function subscribeAcendQuotes(opts: {
           })
         } else if (msg.type === "error") {
           opts.onError?.(msg.error ?? "unknown")
-        } else if (msg.type === "subscribed") {
-          opts.onStatus?.(`subscribed ${msg.pair} @ $${msg.amount_usd}`)
         }
       } catch (e) {
         opts.onError?.(String(e))
@@ -165,9 +177,7 @@ export function subscribeAcendQuotes(opts: {
       setTimeout(connect, wait)
     }
 
-    ws.onerror = () => {
-      opts.onError?.("websocket error")
-    }
+    ws.onerror = () => opts.onError?.("websocket error")
   }
 
   connect()
@@ -180,9 +190,4 @@ export function subscribeAcendQuotes(opts: {
       /* ignore */
     }
   }
-}
-
-/** Update notional on an open socket without reconnecting. */
-export function acendWsSetAmount(ws: WebSocket, amountUsd: number) {
-  ws.send(JSON.stringify({ op: "set", amount_usd: amountUsd }))
 }

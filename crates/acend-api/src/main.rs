@@ -1,3 +1,4 @@
+mod auth;
 mod ws;
 
 use std::net::SocketAddr;
@@ -10,8 +11,9 @@ use acend_book::BidBook;
 use acend_composer::{ComposeOpts, Composer};
 use acend_core::{load_pairs_config, FillMetrics, QuoteRequest, SettlementTier};
 use acend_quote::QuoteEngine;
+use auth::{AuthConfig, RequireApiKey};
 use axum::extract::{Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderValue, Method, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
@@ -20,8 +22,8 @@ use serde::Deserialize;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
-use tower_http::cors::CorsLayer;
-use tracing::{info, Level};
+use tower_http::cors::{AllowOrigin, CorsLayer};
+use tracing::{info, warn, Level};
 
 #[derive(Parser, Debug)]
 #[command(name = "acend-api", about = "AcendCredit quote/swap API")]
@@ -52,6 +54,7 @@ pub(crate) struct AppState {
     pub(crate) engine: Arc<QuoteEngine>,
     pub(crate) composer: Arc<Composer>,
     pub(crate) book: Arc<BidBook>,
+    pub(crate) auth: AuthConfig,
     fills: Arc<AtomicU64>,
     takeover: Arc<AtomicU64>,
     fallback: Arc<AtomicU64>,
@@ -73,6 +76,18 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
+    let auth = AuthConfig::from_env();
+    if auth.api_key.is_none() {
+        warn!("ACEND_API_KEY not set — API is open to the public. Set it on Railway.");
+    } else {
+        info!("API key auth enabled");
+    }
+    if auth.cors_origins.is_empty() {
+        warn!("ACEND_CORS_ORIGINS not set — CORS is permissive");
+    } else {
+        info!(origins = ?auth.cors_origins, "CORS allowlist active");
+    }
+
     let config = load_pairs_config(args.pairs.to_str().unwrap())?;
     let book = BidBook::new();
     match book.load_file(&args.bids).await {
@@ -86,21 +101,31 @@ async fn main() -> anyhow::Result<()> {
         engine,
         composer,
         book,
+        auth: auth.clone(),
         fills: Arc::new(AtomicU64::new(0)),
         takeover: Arc::new(AtomicU64::new(0)),
         fallback: Arc::new(AtomicU64::new(0)),
     };
 
-    let app = Router::new()
+    let cors = build_cors(&auth);
+
+    // Public: health (Railway) + optional demo UI
+    let public = Router::new()
         .route("/", get(index))
-        .route("/health", get(health))
+        .route("/health", get(health));
+
+    // Protected: everything your app actually uses
+    let protected = Router::new()
         .route("/quote", get(quote))
         .route("/swap", get(swap))
         .route("/ws/quotes", get(ws::ws_quotes))
         .route("/bids", get(bids))
         .route("/metrics", get(metrics))
-        .route("/pairs", get(pairs))
-        .layer(CorsLayer::permissive())
+        .route("/pairs", get(pairs));
+
+    let app = public
+        .merge(protected)
+        .layer(cors)
         .with_state(state);
 
     info!("AcendCredit API on http://{}", args.bind);
@@ -109,8 +134,34 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn index() -> Html<&'static str> {
-    Html(include_str!("../../../web/index.html"))
+fn build_cors(auth: &AuthConfig) -> CorsLayer {
+    if auth.cors_origins.is_empty() {
+        return CorsLayer::permissive();
+    }
+    let origins: Vec<HeaderValue> = auth
+        .cors_origins
+        .iter()
+        .filter_map(|o| o.parse().ok())
+        .collect();
+    CorsLayer::new()
+        .allow_origin(AllowOrigin::list(origins))
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers([
+            axum::http::header::AUTHORIZATION,
+            axum::http::header::CONTENT_TYPE,
+            axum::http::HeaderName::from_static("x-acend-key"),
+        ])
+}
+
+async fn index(State(st): State<AppState>) -> Response {
+    if !st.auth.public_ui {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": "not found" })),
+        )
+            .into_response();
+    }
+    Html(include_str!("../../../web/index.html")).into_response()
 }
 
 async fn health(State(st): State<AppState>) -> impl IntoResponse {
@@ -136,7 +187,11 @@ fn default_true() -> bool {
     true
 }
 
-async fn quote(State(st): State<AppState>, Query(q): Query<QuoteQuery>) -> impl IntoResponse {
+async fn quote(
+    _auth: RequireApiKey,
+    State(st): State<AppState>,
+    Query(q): Query<QuoteQuery>,
+) -> impl IntoResponse {
     let req = QuoteRequest {
         pair: q.pair,
         amount_usd: q.amount_usd,
@@ -167,18 +222,19 @@ async fn quote(State(st): State<AppState>, Query(q): Query<QuoteQuery>) -> impl 
 struct SwapQuery {
     pair: String,
     amount_usd: f64,
-    /// residual = Orca-only tx; default = marginfi LFRS
     #[serde(default)]
     path: Option<String>,
-    /// Client wallet pubkey — compose partially signed for this fee-payer.
     #[serde(default)]
     payer: Option<String>,
-    /// When true (default if payer set), simulated_ok only on clean sim.
     #[serde(default)]
     strict: Option<bool>,
 }
 
-async fn swap(State(st): State<AppState>, Query(q): Query<SwapQuery>) -> Response {
+async fn swap(
+    _auth: RequireApiKey,
+    State(st): State<AppState>,
+    Query(q): Query<SwapQuery>,
+) -> Response {
     let pair_cfg = match st.engine.config.get(&q.pair) {
         Ok(p) => p.clone(),
         Err(e) => {
@@ -236,7 +292,6 @@ async fn swap(State(st): State<AppState>, Query(q): Query<SwapQuery>) -> Respons
             }
         }
         None => {
-            // Inspect-only: ephemeral key, soft sim unless strict=true.
             let ephemeral = Keypair::new();
             let opts = ComposeOpts {
                 send: false,
@@ -268,7 +323,7 @@ async fn swap(State(st): State<AppState>, Query(q): Query<SwapQuery>) -> Respons
     }
 }
 
-async fn bids(State(st): State<AppState>) -> impl IntoResponse {
+async fn bids(_auth: RequireApiKey, State(st): State<AppState>) -> impl IntoResponse {
     Json(st.book.list().await)
 }
 
@@ -278,7 +333,7 @@ fn persist_metrics(path: &str, m: &FillMetrics) {
     }
 }
 
-async fn metrics(State(st): State<AppState>) -> Json<FillMetrics> {
+async fn metrics(_auth: RequireApiKey, State(st): State<AppState>) -> Json<FillMetrics> {
     let fills = st.fills.load(Ordering::Relaxed);
     let takeover = st.takeover.load(Ordering::Relaxed);
     let fallback = st.fallback.load(Ordering::Relaxed);
@@ -302,6 +357,6 @@ async fn metrics(State(st): State<AppState>) -> Json<FillMetrics> {
     Json(m)
 }
 
-async fn pairs(State(st): State<AppState>) -> impl IntoResponse {
+async fn pairs(_auth: RequireApiKey, State(st): State<AppState>) -> impl IntoResponse {
     Json(st.engine.config.pairs.clone())
 }
