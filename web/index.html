@@ -3,143 +3,248 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AcendCredit</title>
+  <title>AcendCredit API Docs</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg0: #0c1210; --bg1: #141c18; --ink: #e8efe9; --muted: #8a9a90;
-      --line: rgba(232, 239, 233, 0.12); --accent: #c4a574; --good: #6fbf8a;
+      --bg: #f3f0ea;
+      --bg2: #e7e2d8;
+      --ink: #1c2420;
+      --muted: #5c6a62;
+      --line: rgba(28, 36, 32, 0.12);
+      --accent: #1f6b4a;
+      --code-bg: #1c2420;
+      --code-ink: #e8efe9;
     }
     * { box-sizing: border-box; }
     body {
-      margin: 0; min-height: 100vh; font-family: "DM Sans", system-ui, sans-serif; color: var(--ink);
+      margin: 0;
+      color: var(--ink);
+      font-family: "Source Sans 3", system-ui, sans-serif;
       background:
-        radial-gradient(1200px 600px at 10% -10%, rgba(196, 165, 116, 0.14), transparent 55%),
-        radial-gradient(900px 500px at 100% 0%, rgba(111, 191, 138, 0.08), transparent 50%),
-        linear-gradient(180deg, var(--bg0), var(--bg1));
+        radial-gradient(900px 420px at 0% 0%, rgba(31, 107, 74, 0.10), transparent 60%),
+        radial-gradient(700px 380px at 100% 8%, rgba(28, 36, 32, 0.06), transparent 55%),
+        linear-gradient(180deg, var(--bg), var(--bg2));
+      line-height: 1.55;
     }
-    .wrap { max-width: 720px; margin: 0 auto; padding: 48px 20px 80px; }
-    .brand { font-family: "Cormorant Garamond", Georgia, serif; font-size: 42px; font-weight: 600; margin: 0 0 8px; }
-    h1 { font-family: "Cormorant Garamond", Georgia, serif; font-size: 34px; font-weight: 500; margin: 0 0 10px; line-height: 1.15; }
-    .sub { color: var(--muted); font-size: 15px; line-height: 1.5; margin: 0 0 28px; max-width: 34em; }
-    .panel { border: 1px solid var(--line); background: rgba(20, 28, 24, 0.72); backdrop-filter: blur(8px); padding: 22px; margin-bottom: 36px; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.04em; text-transform: uppercase; }
-    input, select { width: 100%; background: #0a0f0d; border: 1px solid var(--line); color: var(--ink); padding: 12px 14px; font: inherit; font-size: 16px; }
-    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
-    button { width: 100%; border: 0; background: var(--accent); color: #1a140c; font: inherit; font-weight: 600; padding: 14px; cursor: pointer; }
-    button.secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
-    button:disabled { opacity: 0.5; cursor: wait; }
-    .meta { margin-top: 16px; font-size: 14px; color: var(--muted); line-height: 1.6; word-break: break-word; }
-    .meta strong { color: var(--ink); font-weight: 500; }
-    .good { color: var(--good); }
-    .wallet { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
-    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .card { border-top: 1px solid var(--line); padding: 18px 4px 8px; }
-    .card h3 { font-family: "Cormorant Garamond", Georgia, serif; font-size: 22px; font-weight: 500; margin: 0 0 8px; }
-    .card p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
-    @media (max-width: 640px) { .row, .cards, .actions { grid-template-columns: 1fr; } .brand { font-size: 34px; } h1 { font-size: 28px; } }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 56px 22px 96px; }
+    .brand {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: clamp(40px, 8vw, 64px);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin: 0 0 10px;
+      line-height: 1;
+    }
+    .tag {
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 0 0 28px;
+    }
+    .lede {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: clamp(22px, 3.5vw, 30px);
+      font-weight: 500;
+      line-height: 1.25;
+      margin: 0 0 14px;
+      max-width: 18em;
+    }
+    .sub { color: var(--muted); margin: 0 0 40px; max-width: 38em; font-size: 17px; }
+    nav {
+      display: flex; flex-wrap: wrap; gap: 10px 18px;
+      padding: 16px 0 28px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 40px;
+      font-size: 14px;
+    }
+    nav a { color: var(--ink); text-decoration: none; font-weight: 500; }
+    nav a:hover { color: var(--accent); }
+    section { margin-bottom: 44px; }
+    h2 {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 26px;
+      font-weight: 600;
+      margin: 0 0 10px;
+    }
+    h3 { font-size: 15px; font-weight: 600; margin: 22px 0 8px; letter-spacing: 0.02em; }
+    p, li { color: var(--muted); font-size: 16px; }
+    p strong, li strong { color: var(--ink); font-weight: 600; }
+    ol, ul { padding-left: 1.2em; margin: 8px 0 0; }
+    li { margin: 6px 0; }
+    code, .mono {
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 0.9em;
+    }
+    pre {
+      background: var(--code-bg);
+      color: var(--code-ink);
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      margin: 12px 0 0;
+      border-radius: 2px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th { color: var(--ink); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+    td { color: var(--muted); }
+    td code { color: var(--ink); }
+    .note {
+      margin-top: 14px;
+      padding: 12px 0;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+    footer {
+      margin-top: 56px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    a { color: var(--accent); }
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <main class="wrap">
     <p class="brand">AcendCredit</p>
-    <h1>Closer to mid.</h1>
-    <p class="sub">Most of your swap settles in lending markets — pools only close the gap.</p>
+    <p class="tag">Closer to mid</p>
+    <p class="lede">API docs for quotes, swaps, and live WebSocket prices.</p>
+    <p class="sub">
+      This host is your Railway API. Protected routes need an API key.
+      Your Vercel app should call these endpoints — not poll them blindly.
+    </p>
 
-    <div class="panel">
-      <div class="wallet" id="wallet">Wallet: not connected</div>
-      <div class="row">
-        <div>
-          <label>Pair</label>
-          <select id="pair"><option>SOL/USDC</option><option>SOL/USDT</option><option>USDC/USDT</option></select>
-        </div>
-        <div>
-          <label>Amount (USD)</label>
-          <input id="amount" type="number" value="10000" min="1" step="100" />
-        </div>
-      </div>
-      <div class="actions">
-        <button id="connect" class="secondary" type="button">Connect wallet</button>
-        <button id="go" type="button">Get quote</button>
-      </div>
-      <div class="actions">
-        <button id="swap" class="secondary" type="button">Build swap (sim)</button>
-        <button id="sign" class="secondary" type="button" disabled>Sign &amp; send (wallet)</button>
-      </div>
-      <div class="meta" id="out">Pyth-bound · Connect Phantom for wallet send · CLI --send for Devnet deposit e2e</div>
-    </div>
+    <nav>
+      <a href="#setup">Setup</a>
+      <a href="#auth">Auth</a>
+      <a href="#endpoints">Endpoints</a>
+      <a href="#websocket">WebSocket</a>
+      <a href="#vercel">Vercel</a>
+      <a href="#flow">Swap flow</a>
+    </nav>
 
-    <div class="cards">
-      <div class="card"><h3>Less slippage at size</h3><p>~80% clears through lending. Pool impact only hits the leftover ~20%.</p></div>
-      <div class="card"><h3>Less MEV to attack</h3><p>Most notional never enters a pool swap. Sandwich surface shrinks to the residual.</p></div>
-      <div class="card"><h3>Mid or no fill</h3><p>Measured vs Pyth. Too far from mid → quote fails.</p></div>
-      <div class="card"><h3>Depth beyond the pool</h3><p>Size borrows against marginfi / Kamino depth — not just LP inventory.</p></div>
-    </div>
-  </div>
-  <script>
-    const out = document.getElementById('out');
-    const walletEl = document.getElementById('wallet');
-    const pairEl = document.getElementById('pair');
-    const amountEl = document.getElementById('amount');
-    const signBtn = document.getElementById('sign');
-    let pubkey = null;
-    let lastSwap = null;
+    <section id="setup">
+      <h2>Railway setup</h2>
+      <ol>
+        <li>Networking → use your public URL <code>https://….up.railway.app</code> (not <code>.railway.internal</code>).</li>
+        <li>Variables → set the keys below, then redeploy.</li>
+        <li>Do not set <code>PORT</code> or <code>ACEND_BIND</code> — Railway owns the port.</li>
+      </ol>
+      <table>
+        <thead><tr><th>Variable</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>ACEND_API_KEY</code></td><td>Required. Rejects requests without this key.</td></tr>
+          <tr><td><code>ACEND_CORS_ORIGINS</code></td><td>Your Vercel origin(s), comma-separated.</td></tr>
+          <tr><td><code>ACEND_RPC_URL</code></td><td>Mainnet RPC (Helius/QuickNode). Keep private.</td></tr>
+          <tr><td><code>ACEND_PAIRS_CONFIG</code></td><td>Default: <code>config/pairs.mainnet.toml</code></td></tr>
+          <tr><td><code>ACEND_BIDS_CONFIG</code></td><td>Default: <code>config/standing-bids.deploy.json</code></td></tr>
+        </tbody>
+      </table>
+    </section>
 
-    function provider() {
-      return window.solana || window.phantom?.solana || null;
-    }
+    <section id="auth">
+      <h2>Authentication</h2>
+      <p>With <code>ACEND_API_KEY</code> set, protected routes return <strong>401</strong> without a key.</p>
+      <h3>REST</h3>
+      <pre>X-Acend-Key: YOUR_API_KEY
+# or
+Authorization: Bearer YOUR_API_KEY</pre>
+      <h3>WebSocket</h3>
+      <p>Browsers cannot set WS headers. Pass the key as a query param:</p>
+      <pre>wss://YOUR.up.railway.app/ws/quotes?key=YOUR_API_KEY&amp;pair=SOL/USDC&amp;amount_usd=5</pre>
+      <p class="note">Prefer keeping the key on the <strong>server</strong> (Next Route Handlers). A key in the browser or <code>?key=</code> can be copied from DevTools.</p>
+    </section>
 
-    document.getElementById('connect').onclick = async () => {
-      const p = provider();
-      if (!p) { out.textContent = 'Install Phantom (or another Solana wallet).'; return; }
-      try {
-        const res = await p.connect();
-        pubkey = res.publicKey?.toString?.() || p.publicKey?.toString?.();
-        walletEl.innerHTML = 'Wallet: <strong class="good">' + pubkey.slice(0,4) + '…' + pubkey.slice(-4) + '</strong>';
-        signBtn.disabled = false;
-      } catch (e) { out.textContent = e.message || String(e); }
-    };
+    <section id="endpoints">
+      <h2>HTTP endpoints</h2>
+      <table>
+        <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>GET</td><td><code>/</code></td><td>No</td><td>This docs page</td></tr>
+          <tr><td>GET</td><td><code>/health</code></td><td>No</td><td>Railway healthcheck</td></tr>
+          <tr><td>GET</td><td><code>/quote</code></td><td>Yes</td><td><code>?pair=SOL/USDC&amp;amount_usd=5</code></td></tr>
+          <tr><td>GET</td><td><code>/swap</code></td><td>Yes</td><td><code>?pair=…&amp;amount_usd=…&amp;payer=&lt;wallet&gt;</code> — partially signed tx</td></tr>
+          <tr><td>GET</td><td><code>/ws/quotes</code></td><td>Yes</td><td>WebSocket upgrade</td></tr>
+          <tr><td>GET</td><td><code>/pairs</code></td><td>Yes</td><td>Configured pairs</td></tr>
+          <tr><td>GET</td><td><code>/bids</code></td><td>Yes</td><td>Standing bids</td></tr>
+          <tr><td>GET</td><td><code>/metrics</code></td><td>Yes</td><td>Process fill counters</td></tr>
+        </tbody>
+      </table>
 
-    document.getElementById('go').onclick = async () => {
-      out.textContent = 'Quoting…';
-      try {
-        const r = await fetch(`/quote?pair=${encodeURIComponent(pairEl.value)}&amount_usd=${amountEl.value}`);
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error || 'quote failed');
-        out.innerHTML = `<strong class="good">You get $${j.amount_out_usd.toLocaleString(undefined,{maximumFractionDigits:2})}</strong>
-          (−${j.bps_vs_mid.toFixed(2)} bps vs mid)<br/>
-          Via <strong>${j.tier}</strong> · lending ${j.breakdown.lending_pct.toFixed(0)}% · residual ${j.breakdown.residual_pct.toFixed(0)}%<br/>
-          SOL $${j.pyth_base.toFixed(2)} · cluster ${j.cluster}`;
-      } catch (e) { out.textContent = e.message; }
-    };
+      <h3>Quote example</h3>
+      <pre>curl -H "X-Acend-Key: YOUR_KEY" \
+  "https://YOUR.up.railway.app/quote?pair=SOL/USDC&amp;amount_usd=5"</pre>
 
-    document.getElementById('swap').onclick = async () => {
-      const btn = document.getElementById('swap');
-      btn.disabled = true;
-      out.textContent = 'Composing swap (simulate)…';
-      try {
-        const r = await fetch(`/swap?pair=${encodeURIComponent(pairEl.value)}&amount_usd=${amountEl.value}`);
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error || 'swap failed');
-        lastSwap = j;
-        const stages = (j.stages || []).map(s => `${s.name}:${s.status}`).join(' · ');
-        out.innerHTML = `<strong class="good">Sim ${j.simulated_ok ? 'ok' : 'soft-fail'}</strong>
-          · ${j.quote.bps_vs_mid.toFixed(2)} bps · ${j.quote.tier}<br/>${j.note || ''}<br/>
-          <span style="font-size:12px">${stages}</span>`;
-        signBtn.disabled = !pubkey || !j.transaction_base64;
-      } catch (e) { out.textContent = e.message; }
-      finally { btn.disabled = false; }
-    };
+      <h3>Swap example</h3>
+      <pre>curl -H "X-Acend-Key: YOUR_KEY" \
+  "https://YOUR.up.railway.app/swap?pair=SOL/USDC&amp;amount_usd=5&amp;payer=WALLET_PUBKEY"</pre>
+      <p>Response includes <code>transaction_base64</code> and <code>needs_client_signature: true</code>. Your wallet signs the fee-payer and sends. Railway never holds keys or sends funds.</p>
+    </section>
 
-    document.getElementById('sign').onclick = async () => {
-      const p = provider();
-      if (!p || !pubkey) { out.textContent = 'Connect wallet first.'; return; }
-      if (!lastSwap?.transaction_base64) { out.textContent = 'Build swap first.'; return; }
-      out.textContent = 'Wallet signing is scaffolded: server-built txs use an ephemeral fee payer. Use CLI --keypair --send for live Devnet deposits, or mainnet compose/sim with ACEND_PAIRS_CONFIG=config/pairs.mainnet.toml. Full Phantom fee-payer rewrite lands next.';
-    };
-  </script>
+    <section id="websocket">
+      <h2>WebSocket — live quotes &amp; prices</h2>
+      <p>Subscribe once. Do <strong>not</strong> poll <code>/quote</code> from Vercel every second.</p>
+      <pre>wss://YOUR.up.railway.app/ws/quotes?key=YOUR_KEY&amp;pair=SOL/USDC&amp;amount_usd=5&amp;interval_ms=2000</pre>
+      <h3>Client → server</h3>
+      <pre>{"op":"subscribe","pair":"SOL/USDC","amount_usd":5,"interval_ms":2000}
+{"op":"set","amount_usd":10}
+{"op":"unsubscribe"}
+{"op":"ping"}</pre>
+      <h3>Server → client</h3>
+      <pre>{"type":"hello", ...}
+{"type":"subscribed","pair":"SOL/USDC","amount_usd":5,"interval_ms":2000}
+{"type":"tick","quote":{...},"pyth_base":...,"pyth_quote":...,"ts_ms":...}
+{"type":"error","error":"..."}
+{"type":"pong"}</pre>
+      <p>Interval is clamped to <strong>1–10 seconds</strong> (default <strong>2s</strong>).</p>
+    </section>
+
+    <section id="vercel">
+      <h2>Vercel wiring</h2>
+      <p><strong>Recommended</strong> (key stays server-side):</p>
+      <pre>ACEND_API_URL=https://acend-production.up.railway.app
+ACEND_API_KEY=same-as-railway
+ACEND_CORS_ORIGINS on Railway = https://your-app.vercel.app</pre>
+      <p>Call Railway from Next Route Handlers / Server Actions. Copy helper: <code>docs/client-examples/acend.ts</code> in the GitHub repo.</p>
+      <p><strong>Quick client test only</strong> (weaker):</p>
+      <pre>NEXT_PUBLIC_ACEND_API_URL=https://acend-production.up.railway.app
+NEXT_PUBLIC_ACEND_API_KEY=…</pre>
+    </section>
+
+    <section id="flow">
+      <h2>Recommended app flow</h2>
+      <ol>
+        <li>Open swap UI → connect WebSocket for live <code>tick</code>s (bps, out amount, Pyth prices).</li>
+        <li>User confirms → <code>GET /swap?payer=…</code> once.</li>
+        <li>Deserialize <code>transaction_base64</code> → wallet signs → <code>sendRawTransaction</code>.</li>
+        <li>Start with a couple dollars on mainnet.</li>
+      </ol>
+    </section>
+
+    <footer>
+      AcendCredit · <a href="/health">/health</a> ·
+      source <a href="https://github.com/kaidenbell/Acend">github.com/kaidenbell/Acend</a>
+    </footer>
+  </main>
 </body>
 </html>

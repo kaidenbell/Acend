@@ -11,7 +11,7 @@ pub struct AuthConfig {
     pub api_key: Option<String>,
     /// Allowed browser origins for CORS (empty = permissive, for local only).
     pub cors_origins: Vec<String>,
-    /// Serve the demo HTML at `/`.
+    /// Serve docs HTML at `/`. Default true. Set ACEND_PUBLIC_UI=false to 404 `/`.
     pub public_ui: bool,
 }
 
@@ -32,10 +32,10 @@ impl AuthConfig {
             })
             .unwrap_or_default();
 
-        // Hide demo UI whenever an API key is configured, unless explicitly enabled.
+        // Docs at `/` are on by default (even with API key). Opt out with ACEND_PUBLIC_UI=false.
         let public_ui = match std::env::var("ACEND_PUBLIC_UI") {
-            Ok(v) => matches!(v.to_lowercase().as_str(), "1" | "true" | "yes"),
-            Err(_) => api_key.is_none(),
+            Ok(v) => !matches!(v.to_lowercase().as_str(), "0" | "false" | "no"),
+            Err(_) => true,
         };
 
         Self {
