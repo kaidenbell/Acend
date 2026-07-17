@@ -1,0 +1,13 @@
+{
+  "bids": [
+    {
+      "id": "deploy-seed-sol-usdc",
+      "pair": "SOL/USDC",
+      "max_size_usd": 5000,
+      "max_spread_bps": 0.75,
+      "preferred_ltv_bps": 8000,
+      "bidder_pubkey": "AcendDeploySeed111111111111111111111111111",
+      "updated_at": "2026-07-17T00:00:00Z"
+    }
+  ]
+}

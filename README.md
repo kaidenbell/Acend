@@ -47,6 +47,29 @@ cargo run -p acend-api
 
 Pass `payer` so the response is **partially signed** (`needs_client_signature: true`). Your app signs the fee-payer and sends.
 
+## Deploy on Railway (mainnet API)
+
+1. Railway → **New Project** → **Deploy from GitHub** → `kaidenbell/Acend`
+2. It picks up `Dockerfile` + `railway.toml` automatically
+3. Set variables (optional overrides — Dockerfile already defaults to mainnet):
+
+| Variable | Suggested |
+|---|---|
+| `ACEND_RPC_URL` | Your Helius/QuickNode mainnet URL (public RPC works but rate-limits) |
+| `ACEND_PAIRS_CONFIG` | `config/pairs.mainnet.toml` |
+| `ACEND_BIDS_CONFIG` | `config/standing-bids.deploy.json` |
+
+`PORT` is set by Railway; the API binds `0.0.0.0:$PORT` automatically.
+
+4. After deploy, point your app at:
+
+```
+https://YOUR-SERVICE.up.railway.app/quote?pair=SOL/USDC&amount_usd=5
+https://YOUR-SERVICE.up.railway.app/swap?pair=SOL/USDC&amount_usd=5&payer=<WALLET>
+```
+
+**Money flow:** Railway only composes + simulates. Your wallet signs and sends on mainnet — start with ~$2–5 notional. No server keypair required.
+
 ## Venues
 
 - marginfi mainnet program `MFv2…` group `4qp6…` SOL/USDC banks preloaded
@@ -55,5 +78,5 @@ Pass `payer` so the response is **partially signed** (`needs_client_signature: t
 
 ## Still hardening
 
-- Mainnet **funded send** (real USDC/SOL) — tiny size + CLI `--send` only when ready
+- Mainnet **funded send** (real USDC/SOL) — tiny size via your app wallet after Railway `/swap`
 - Dual-sign takeover co-signing (bid book loads from file; handoff not live yet)

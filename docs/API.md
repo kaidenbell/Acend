@@ -81,4 +81,5 @@ Fill counters for this process (`fills_24h`, takeover/fallback %). Also written 
 | `ACEND_BIND` | `127.0.0.1:8080` |
 | `ACEND_RPC_URL` | Devnet RPC |
 | `ACEND_PAIRS_CONFIG` | `config/pairs.toml` |
-| `ACEND_BIDS_CONFIG` | `config/standing-bids.json` |
+| `ACEND_BIDS_CONFIG` | `config/standing-bids.json` (local) / `config/standing-bids.deploy.json` (Railway) |
+| `PORT` | Set by Railway — API binds `0.0.0.0:$PORT` when `ACEND_BIND` unset |

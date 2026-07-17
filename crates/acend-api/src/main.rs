@@ -61,7 +61,16 @@ async fn main() -> anyhow::Result<()> {
         .with_max_level(Level::INFO)
         .init();
 
-    let args = Args::parse();
+    let mut args = Args::parse();
+    // Railway (and most PaaS) inject PORT; bind publicly unless ACEND_BIND is set.
+    if std::env::var("ACEND_BIND").is_err() {
+        if let Ok(port) = std::env::var("PORT") {
+            args.bind = format!("0.0.0.0:{port}")
+                .parse()
+                .map_err(|e| anyhow::anyhow!("invalid PORT={port}: {e}"))?;
+        }
+    }
+
     let config = load_pairs_config(args.pairs.to_str().unwrap())?;
     let book = BidBook::new();
     match book.load_file(&args.bids).await {

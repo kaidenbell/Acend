@@ -1,0 +1,14 @@
+target
+**/target
+.keys
+.keys/
+.git
+.env
+.env.*
+node_modules
+**/node_modules
+dist
+*.md
+!README.md
+docs
+.cursor
