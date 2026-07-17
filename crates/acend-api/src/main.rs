@@ -228,6 +228,9 @@ struct SwapQuery {
     payer: Option<String>,
     #[serde(default)]
     strict: Option<bool>,
+    /// true = SOL→USDC (default); false = USDC→SOL
+    #[serde(default = "default_true")]
+    sell_base: bool,
 }
 
 async fn swap(
@@ -248,7 +251,7 @@ async fn swap(
     let req = QuoteRequest {
         pair: q.pair.clone(),
         amount_usd: q.amount_usd,
-        sell_base: true,
+        sell_base: q.sell_base,
     };
     let quote = match st.engine.quote(req).await {
         Ok(q) => q,

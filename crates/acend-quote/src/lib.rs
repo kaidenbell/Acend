@@ -51,7 +51,7 @@ impl QuoteEngine {
             .map_err(|e| AcendError::Oracle(e.to_string()))?;
 
         let mid_usd = req.amount_usd;
-        let _ = req.sell_base;
+        let sell_base = req.sell_base;
 
         let bid = self.book.best_for(&pair.id, req.amount_usd).await;
         let tier = tier_from_book(bid.is_some(), false);
@@ -59,12 +59,24 @@ impl QuoteEngine {
         let (inner, bps) = match tier {
             SettlementTier::Takeover => self.quote_takeover(&pair, mid_usd, &bid.unwrap())?,
             SettlementTier::Net => {
-                self.quote_orca_fallback(&pair, mid_usd, prices.base_usd, prices.quote_usd)
-                    .await?
+                self.quote_orca_fallback(
+                    &pair,
+                    mid_usd,
+                    prices.base_usd,
+                    prices.quote_usd,
+                    sell_base,
+                )
+                .await?
             }
             SettlementTier::OrcaFallback => {
-                self.quote_orca_fallback(&pair, mid_usd, prices.base_usd, prices.quote_usd)
-                    .await?
+                self.quote_orca_fallback(
+                    &pair,
+                    mid_usd,
+                    prices.base_usd,
+                    prices.quote_usd,
+                    sell_base,
+                )
+                .await?
             }
         };
 
@@ -95,6 +107,7 @@ impl QuoteEngine {
             breakdown: inner.breakdown,
             expires_at: Utc::now() + Duration::seconds(30),
             cluster: self.config.cluster.clone(),
+            sell_base,
         })
     }
 
@@ -131,6 +144,7 @@ impl QuoteEngine {
         mid_usd: f64,
         base_price_usd: f64,
         quote_price_usd: f64,
+        sell_base: bool,
     ) -> Result<(InnerQuote, f64)> {
         let lending = self
             .lending
@@ -150,6 +164,7 @@ impl QuoteEngine {
                 mid_usd,
                 base_price_usd,
                 quote_price_usd,
+                sell_base,
             )
             .await
         {
@@ -157,6 +172,7 @@ impl QuoteEngine {
             Ok(q) => {
                 warn!(
                     pair = %pair.id,
+                    sell_base,
                     live_bps = q.all_in_bps_of_full,
                     cap = pair.bps_cap,
                     "live Orca quote exceeds cap (thin/mispriced pool); using model"
@@ -164,7 +180,7 @@ impl QuoteEngine {
                 model
             }
             Err(e) => {
-                warn!(error = %e, pair = %pair.id, "live Orca quote failed; using model");
+                warn!(error = %e, pair = %pair.id, sell_base, "live Orca quote failed; using model");
                 model
             }
         };

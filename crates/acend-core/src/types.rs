@@ -61,6 +61,9 @@ pub struct Quote {
     pub breakdown: QuoteBreakdown,
     pub expires_at: DateTime<Utc>,
     pub cluster: String,
+    /// true = base→quote (SOL→USDC); false = quote→base (USDC→SOL).
+    #[serde(default = "default_true")]
+    pub sell_base: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

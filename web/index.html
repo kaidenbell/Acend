@@ -128,8 +128,8 @@ wss://acend-production.up.railway.app/ws/quotes?key=&lt;ACEND_API_KEY&gt;&amp;pa
       <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Query</th><th>Use</th></tr></thead>
       <tbody>
         <tr><td>GET</td><td><code>/health</code></td><td>No</td><td>—</td><td>Liveness</td></tr>
-        <tr><td>GET</td><td><code>/quote</code></td><td>Yes</td><td><code>pair</code>, <code>amount_usd</code>, <code>sell_base</code> (default true)</td><td>One-shot quote (prefer WS for UI)</td></tr>
-        <tr><td>GET</td><td><code>/swap</code></td><td>Yes</td><td><code>pair</code>, <code>amount_usd</code>, <code>payer</code> (wallet pubkey), <code>path</code>=lfrs|residual, <code>strict</code></td><td>Compose partially signed tx</td></tr>
+        <tr><td>GET</td><td><code>/quote</code></td><td>Yes</td><td><code>pair</code>, <code>amount_usd</code>, <code>sell_base</code> (default true = SOL→USDC; false = USDC→SOL)</td><td>One-shot quote (prefer WS for UI)</td></tr>
+        <tr><td>GET</td><td><code>/swap</code></td><td>Yes</td><td><code>pair</code>, <code>amount_usd</code>, <code>payer</code>, <code>sell_base</code>, <code>path</code>, <code>strict</code></td><td>Compose partially signed tx</td></tr>
         <tr><td>GET</td><td><code>/pairs</code></td><td>Yes</td><td>—</td><td>Configured pairs</td></tr>
         <tr><td>GET</td><td><code>/bids</code></td><td>Yes</td><td>—</td><td>Standing bids</td></tr>
         <tr><td>GET</td><td><code>/metrics</code></td><td>Yes</td><td>—</td><td>Fill counters</td></tr>
@@ -143,7 +143,11 @@ wss://acend-production.up.railway.app/ws/quotes?key=&lt;ACEND_API_KEY&gt;&amp;pa
 
     <h3>GET /swap (call once on confirm)</h3>
     <pre>curl -s -H "X-Acend-Key: $ACEND_API_KEY" \
-  "https://acend-production.up.railway.app/swap?pair=SOL/USDC&amp;amount_usd=5&amp;payer=WALLET_PUBKEY&amp;path=lfrs&amp;strict=true"</pre>
+  "https://acend-production.up.railway.app/swap?pair=SOL/USDC&amp;amount_usd=5&amp;payer=WALLET_PUBKEY&amp;path=lfrs&amp;strict=true&amp;sell_base=true"
+
+# USDC → SOL
+curl -s -H "X-Acend-Key: $ACEND_API_KEY" \
+  "https://acend-production.up.railway.app/swap?pair=SOL/USDC&amp;amount_usd=5&amp;payer=WALLET_PUBKEY&amp;sell_base=false"</pre>
     <p>Important response fields:</p>
     <ul>
       <li><code>transaction_base64</code> — bincode <code>VersionedTransaction</code></li>
@@ -198,8 +202,10 @@ wss://acend-production.up.railway.app/ws/quotes?key=&lt;ACEND_API_KEY&gt;&amp;pa
     "auction_spread_usd": 0.0
   },
   "expires_at": "ISO-8601",
-  "cluster": "mainnet-beta"
+  "cluster": "mainnet-beta",
+  "sell_base": true
 }</pre>
+    <p><code>sell_base: true</code> = SOL→USDC. <code>sell_base: false</code> = USDC→SOL (deposit USDC / borrow SOL / Orca USDC→SOL).</p>
   </section>
 
   <section id="flow">
@@ -226,15 +232,19 @@ function headers(): HeadersInit {
   return KEY ? { "X-Acend-Key": KEY } : {};
 }
 
-export async function acendQuote(pair: string, amountUsd: number) {
-  const q = new URLSearchParams({ pair, amount_usd: String(amountUsd) });
+export async function acendQuote(pair: string, amountUsd: number, sellBase = true) {
+  const q = new URLSearchParams({
+    pair,
+    amount_usd: String(amountUsd),
+    sell_base: String(sellBase),
+  });
   const r = await fetch(`${BASE}/quote?${q}`, { headers: headers() });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
 
 export async function acendSwap(opts: {
-  pair: string; amountUsd: number; payer: string; path?: string;
+  pair: string; amountUsd: number; payer: string; path?: string; sellBase?: boolean;
 }) {
   const q = new URLSearchParams({
     pair: opts.pair,
@@ -242,17 +252,19 @@ export async function acendSwap(opts: {
     payer: opts.payer,
     path: opts.path ?? "lfrs",
     strict: "true",
+    sell_base: String(opts.sellBase ?? true),
   });
   const r = await fetch(`${BASE}/swap?${q}`, { headers: headers() });
   if (!r.ok) throw new Error(await r.text());
-  return r.json(); // { transaction_base64, needs_client_signature, quote, ... }
+  return r.json();
 }
 
 export function acendSubscribeQuotes(opts: {
-  pair: string; amountUsd: number; intervalMs?: number;
-  onTick: (msg: any) =&gt; void; onError?: (e: string) =&gt; void;
+  pair: string; amountUsd: number; intervalMs?: number; sellBase?: boolean;
+  onTick: (msg: any) => void; onError?: (e: string) => void;
 }) {
   const ms = Math.min(10000, Math.max(1000, opts.intervalMs ?? 2000));
+  const sellBase = opts.sellBase ?? true;
   const url = new URL(BASE.replace(/^http/, "ws") + "/ws/quotes");
   url.searchParams.set("pair", opts.pair);
   url.searchParams.set("amount_usd", String(opts.amountUsd));
@@ -263,31 +275,32 @@ export function acendSubscribeQuotes(opts: {
   let closed = false;
   let retry = 1000;
 
-  const connect = () =&gt; {
+  const connect = () => {
     if (closed) return;
     ws = new WebSocket(url.toString());
-    ws.onopen = () =&gt; {
+    ws.onopen = () => {
       retry = 1000;
       ws!.send(JSON.stringify({
         op: "subscribe",
         pair: opts.pair,
         amount_usd: opts.amountUsd,
         interval_ms: ms,
+        sell_base: sellBase,
       }));
     };
-    ws.onmessage = (ev) =&gt; {
+    ws.onmessage = (ev) => {
       const msg = JSON.parse(String(ev.data));
       if (msg.type === "tick") opts.onTick(msg);
       if (msg.type === "error") opts.onError?.(msg.error);
     };
-    ws.onclose = () =&gt; {
+    ws.onclose = () => {
       if (closed) return;
       setTimeout(connect, retry);
       retry = Math.min(15000, retry * 2);
     };
   };
   connect();
-  return () =&gt; { closed = true; ws?.close(); };
+  return () => { closed = true; ws?.close(); };
 }</pre>
 
     <h3>Next.js proxy pattern (keeps key off the client)</h3>

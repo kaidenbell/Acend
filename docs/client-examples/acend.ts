@@ -94,6 +94,7 @@ export async function fetchAcendSwap(opts: {
   payer: string
   path?: "lfrs" | "residual"
   strict?: boolean
+  sellBase?: boolean
 }): Promise<AcendSwapPayload> {
   const q = new URLSearchParams({
     pair: opts.pair,
@@ -101,6 +102,7 @@ export async function fetchAcendSwap(opts: {
     payer: opts.payer,
     path: opts.path ?? "lfrs",
     strict: String(opts.strict ?? true),
+    sell_base: String(opts.sellBase ?? true),
   })
   const res = await fetch(`${apiBase()}/swap?${q}`, { headers: authHeaders() })
   if (!res.ok) throw new Error(await res.text())

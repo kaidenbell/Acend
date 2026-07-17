@@ -239,6 +239,7 @@ impl Composer {
         let authority = payer.pubkey();
         let mut stages = Vec::new();
         let residual_usd = quote.breakdown.residual_usd;
+        let sell_base = quote.sell_base;
         let mut ixs: Vec<Instruction> = vec![
             ComputeBudgetInstruction::set_compute_unit_limit(1_400_000),
             ComputeBudgetInstruction::set_compute_unit_price(1_000),
@@ -252,8 +253,10 @@ impl Composer {
                 pair,
                 residual_usd,
                 quote.pyth_base,
+                quote.pyth_quote,
                 authority,
                 50,
+                sell_base,
             )
             .await
         {
@@ -262,7 +265,7 @@ impl Composer {
                     name: "orca_residual".into(),
                     status: "built".into(),
                     detail: format!(
-                        "atoms={} whirlpool={} {}",
+                        "sell_base={sell_base} atoms={} whirlpool={} {}",
                         built.input_amount_atoms, built.whirlpool, built.estimated_out_note
                     ),
                 });
@@ -304,12 +307,29 @@ impl Composer {
 
         let lending_usd = quote.breakdown.lending_usd;
         let residual_usd = quote.breakdown.residual_usd;
-        let sol_collateral_atoms = if quote.pyth_base > 0.0 {
-            ((lending_usd / quote.pyth_base) * 1e9).floor() as u64
+        let sell_base = quote.sell_base;
+
+        // SOL→USDC: collateral SOL, borrow USDC
+        // USDC→SOL: collateral USDC, borrow SOL
+        let (collateral_atoms, borrow_atoms) = if sell_base {
+            let sol_atoms = if quote.pyth_base > 0.0 {
+                ((lending_usd / quote.pyth_base) * 1e9).floor() as u64
+            } else {
+                0
+            };
+            let usdc_atoms =
+                (lending_usd * 10f64.powi(pair.quote_decimals as i32)).floor() as u64;
+            (sol_atoms, usdc_atoms)
         } else {
-            0
+            let usdc_atoms =
+                (lending_usd * 10f64.powi(pair.quote_decimals as i32)).floor() as u64;
+            let sol_atoms = if quote.pyth_base > 0.0 {
+                ((lending_usd / quote.pyth_base) * 1e9).floor() as u64
+            } else {
+                0
+            };
+            (usdc_atoms, sol_atoms)
         };
-        let borrow_atoms = (lending_usd * 10f64.powi(pair.quote_decimals as i32)).floor() as u64;
 
         let scripts = scripts_dir_from_cwd();
         let mfi = self
@@ -317,7 +337,7 @@ impl Composer {
             .build_live_devnet(
                 &self.rpc_url,
                 authority,
-                sol_collateral_atoms,
+                collateral_atoms,
                 borrow_atoms,
                 &scripts,
                 if pair_is_mainnet(pair) {
@@ -325,6 +345,7 @@ impl Composer {
                 } else {
                     "dev"
                 },
+                sell_base,
             )
             .await;
 
@@ -336,7 +357,7 @@ impl Composer {
                         name: name.clone(),
                         status: status.clone(),
                         detail: format!(
-                            "account={} quote_mint={}",
+                            "account={} quote_mint={} sell_base={sell_base}",
                             built.account, built.quote_mint
                         ),
                     });
@@ -352,8 +373,10 @@ impl Composer {
                             pair,
                             residual_usd,
                             quote.pyth_base,
+                            quote.pyth_quote,
                             authority,
                             50,
+                            sell_base,
                         )
                         .await
                     {
@@ -370,7 +393,7 @@ impl Composer {
                                     name: "orca_residual".into(),
                                     status: "spliced".into(),
                                     detail: format!(
-                                        "residual_usd={residual_usd:.2} atoms={} whirlpool={}",
+                                        "sell_base={sell_base} residual_usd={residual_usd:.2} atoms={} whirlpool={}",
                                         orca.input_amount_atoms, orca.whirlpool
                                     ),
                                 });
@@ -397,7 +420,7 @@ impl Composer {
                         name: "orca_residual".into(),
                         status: "deferred".into(),
                         detail: format!(
-                            "residual_usd={residual_usd:.2} whirlpool={} (mint mismatch or empty pool)",
+                            "sell_base={sell_base} residual_usd={residual_usd:.2} whirlpool={} (mint mismatch or empty pool)",
                             pair.whirlpool
                         ),
                     });

@@ -60,7 +60,8 @@ impl OrcaAdapter {
         })
     }
 
-    /// Live Whirlpool residual quote: fee+impact from ExactIn estimate vs Pyth mid.
+    /// Live Whirlpool residual quote.
+    /// `sell_base=true` → ExactIn base (SOL); `false` → ExactIn quote (USDC).
     pub async fn quote_residual_live(
         &self,
         rpc_url: &str,
@@ -68,6 +69,7 @@ impl OrcaAdapter {
         notional_usd: f64,
         base_price_usd: f64,
         quote_price_usd: f64,
+        sell_base: bool,
     ) -> Result<OrcaResidualQuote> {
         let (_lending, residual) = split_notional(notional_usd, pair.ltv_bps);
         if pair.whirlpool.trim().is_empty() {
@@ -79,9 +81,27 @@ impl OrcaAdapter {
 
         let whirlpool = Pubkey::from_str(&pair.whirlpool).context("whirlpool pubkey")?;
         let base_mint = Pubkey::from_str(&pair.base_mint).context("base mint")?;
-        let scale_in = 10f64.powi(pair.base_decimals as i32);
-        let scale_out = 10f64.powi(pair.quote_decimals as i32);
-        let input_amount_atoms = ((residual / base_price_usd) * scale_in).floor() as u64;
+        let quote_mint = Pubkey::from_str(&pair.quote_mint).context("quote mint")?;
+
+        let (input_mint, scale_in, scale_out, in_price, out_price) = if sell_base {
+            (
+                base_mint,
+                10f64.powi(pair.base_decimals as i32),
+                10f64.powi(pair.quote_decimals as i32),
+                base_price_usd,
+                quote_price_usd,
+            )
+        } else {
+            (
+                quote_mint,
+                10f64.powi(pair.quote_decimals as i32),
+                10f64.powi(pair.base_decimals as i32),
+                quote_price_usd,
+                base_price_usd,
+            )
+        };
+
+        let input_amount_atoms = ((residual / in_price) * scale_in).floor() as u64;
         if input_amount_atoms == 0 {
             return Err(anyhow!("residual too small"));
         }
@@ -98,13 +118,12 @@ impl OrcaAdapter {
                         .build()
                         .expect("rt");
                     let rpc = RpcClient::new(rpc_url);
-                    // Payer unused for quote path amounts; dummy pubkey ok for ATA prep.
                     let payer = Pubkey::new_unique();
                     rt.block_on(swap_instructions(
                         &rpc,
                         whirlpool,
                         input_amount_atoms,
-                        base_mint,
+                        input_mint,
                         SwapType::ExactIn,
                         Some(50u16),
                         Some(payer),
@@ -122,17 +141,16 @@ impl OrcaAdapter {
             return Err(anyhow!("expected ExactIn quote"));
         };
 
-        let in_usd = (q.token_in as f64 / scale_in) * base_price_usd;
-        let out_usd = (q.token_est_out as f64 / scale_out) * quote_price_usd;
+        let in_usd = (q.token_in as f64 / scale_in) * in_price;
+        let out_usd = (q.token_est_out as f64 / scale_out) * out_price;
         let shortfall_usd = (in_usd - out_usd).max(0.0);
-        let fee_usd = (q.trade_fee as f64 / scale_in) * base_price_usd;
+        let fee_usd = (q.trade_fee as f64 / scale_in) * in_price;
         let impact_usd = (shortfall_usd - fee_usd).max(0.0);
         let all_in = if notional_usd > 0.0 {
             (shortfall_usd / notional_usd) * 10_000.0
         } else {
             0.0
         };
-        // Effective fee bps of residual (for breakdown display).
         let fee_bps = if residual > 0.0 {
             (fee_usd / residual) * 10_000.0
         } else {
@@ -141,12 +159,12 @@ impl OrcaAdapter {
 
         info!(
             pair = %pair.id,
+            sell_base,
             residual,
             in_usd,
             out_usd,
             shortfall_usd,
             all_in,
-            trade_fee_rate_max = q.trade_fee_rate_max,
             "live Orca residual quote"
         );
 
@@ -160,35 +178,52 @@ impl OrcaAdapter {
         })
     }
 
-    /// Build real Whirlpool swap ixs for the residual notional (base → quote).
+    /// Build Whirlpool ExactIn ixs for residual.
+    /// `sell_base=true` → swap base→quote; `false` → quote→base.
     pub async fn build_residual_swap(
         &self,
         rpc_url: &str,
         pair: &PairConfig,
         residual_usd: f64,
         base_price_usd: f64,
+        quote_price_usd: f64,
         payer: Pubkey,
         slippage_bps: u16,
+        sell_base: bool,
     ) -> Result<OrcaSwapBuild> {
         if pair.whirlpool.trim().is_empty() {
             return Err(anyhow!("pair {} has no whirlpool configured", pair.id));
         }
-        if residual_usd <= 0.0 || base_price_usd <= 0.0 {
+        if residual_usd <= 0.0 || base_price_usd <= 0.0 || quote_price_usd <= 0.0 {
             return Err(anyhow!("invalid residual/price"));
         }
 
         let whirlpool = Pubkey::from_str(&pair.whirlpool).context("whirlpool pubkey")?;
         let base_mint = Pubkey::from_str(&pair.base_mint).context("base mint")?;
+        let quote_mint = Pubkey::from_str(&pair.quote_mint).context("quote mint")?;
 
-        let base_tokens = residual_usd / base_price_usd;
-        let scale = 10f64.powi(pair.base_decimals as i32);
-        let input_amount_atoms = (base_tokens * scale).floor() as u64;
+        let (input_mint, in_price, scale) = if sell_base {
+            (
+                base_mint,
+                base_price_usd,
+                10f64.powi(pair.base_decimals as i32),
+            )
+        } else {
+            (
+                quote_mint,
+                quote_price_usd,
+                10f64.powi(pair.quote_decimals as i32),
+            )
+        };
+
+        let input_amount_atoms = ((residual_usd / in_price) * scale).floor() as u64;
         if input_amount_atoms == 0 {
             return Err(anyhow!("residual too small for swap atoms"));
         }
 
         info!(
             pair = %pair.id,
+            sell_base,
             residual_usd,
             input_amount_atoms,
             %whirlpool,
@@ -212,7 +247,7 @@ impl OrcaAdapter {
                         &rpc,
                         whirlpool,
                         input_amount_atoms,
-                        base_mint,
+                        input_mint,
                         SwapType::ExactIn,
                         Some(slippage_bps),
                         Some(payer),
@@ -237,4 +272,3 @@ impl OrcaAdapter {
         })
     }
 }
-

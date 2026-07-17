@@ -109,15 +109,16 @@ impl LendingAdapter {
         Pubkey::from_str(MARGINFI_DEVNET_PROGRAM).map_err(|e| anyhow!(e))
     }
 
-    /// Build live marginfi init + flash + borrow + deposit + repay via Node SDK helper.
+    /// Build live marginfi init + flash + borrow + deposit via Node SDK helper.
     pub async fn build_live_devnet(
         &self,
         rpc_url: &str,
         authority: Pubkey,
-        sol_amount_atoms: u64,
+        collateral_amount_atoms: u64,
         borrow_amount_atoms: u64,
         scripts_dir: &Path,
         mfi_env: &str,
+        sell_base: bool,
     ) -> Result<MarginfiLiveBuild> {
         let mut script = scripts_dir.join("mfi-compose.js");
         if !script.exists() {
@@ -136,10 +137,15 @@ impl LendingAdapter {
             .arg(rpc_url)
             .arg("--authority")
             .arg(authority.to_string())
+            .arg("--collateral-amount-atoms")
+            .arg(collateral_amount_atoms.to_string())
+            // legacy alias still accepted by the script
             .arg("--sol-amount-atoms")
-            .arg(sol_amount_atoms.to_string())
+            .arg(collateral_amount_atoms.to_string())
             .arg("--borrow-amount-atoms")
             .arg(borrow_amount_atoms.to_string())
+            .arg("--sell-base")
+            .arg(if sell_base { "true" } else { "false" })
             .arg("--env")
             .arg(mfi_env)
             .current_dir(scripts_dir)
@@ -171,8 +177,6 @@ impl LendingAdapter {
             stage_details.push((ix.name.clone(), "built".into()));
         }
 
-        // Flash start/end only when helper returns a real flash ix (16+ bytes).
-        // Devnet deposit-only mode ships stubs — skip cleanly.
         let start_data = B64
             .decode(parsed.start_flash.data.as_bytes())
             .unwrap_or_default();
@@ -210,7 +214,8 @@ impl LendingAdapter {
         info!(
             %account,
             ixs = instructions.len(),
-            "built live marginfi Devnet ixs"
+            sell_base,
+            "built live marginfi ixs"
         );
 
         Ok(MarginfiLiveBuild {

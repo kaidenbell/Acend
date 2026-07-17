@@ -27,6 +27,8 @@ pub struct WsQuery {
     /// API key for browser WebSockets (browsers cannot set custom WS headers).
     #[serde(default)]
     key: Option<String>,
+    #[serde(default = "default_true")]
+    sell_base: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -130,7 +132,7 @@ async fn handle_socket(socket: WebSocket, st: AppState, boot: WsQuery) {
             sub = Some(SubState {
                 pair: pair.clone(),
                 amount_usd,
-                sell_base: true,
+                sell_base: boot.sell_base,
                 interval_ms,
             });
             let _ = sink

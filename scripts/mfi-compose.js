@@ -3,13 +3,16 @@
  * Build marginfi instructions for AcendCredit.
  *
  * Devnet  (--env dev):        deposit-only (no flash on-chain)
- * Mainnet (--env production): flash + borrow USDC + deposit SOL
+ * Mainnet (--env production):
+ *   sell-base=true  (SOL→USDC): flash + borrow USDC + deposit SOL
+ *   sell-base=false (USDC→SOL): flash + borrow SOL  + deposit USDC
  *
  *   node scripts/mfi-compose.js \
  *     --env production|dev \
  *     --authority <pubkey> \
- *     --sol-amount-atoms <u64> \
+ *     --collateral-amount-atoms <u64> \
  *     --borrow-amount-atoms <u64> \
+ *     --sell-base true|false \
  *     --rpc <url>
  */
 const {
@@ -70,7 +73,10 @@ function stubFlash(name) {
   const authorityStr = arg("authority");
   if (!authorityStr) throw new Error("--authority required");
   const authority = new PublicKey(authorityStr);
-  const solAtoms = BigInt(arg("sol-amount-atoms", "0"));
+  const sellBase = String(arg("sell-base", "true")).toLowerCase() !== "false";
+  const collateralAtoms = BigInt(
+    arg("collateral-amount-atoms", arg("sol-amount-atoms", "0"))
+  );
   const borrowAtoms = BigInt(arg("borrow-amount-atoms", "0"));
 
   const connection = new Connection(rpc, "confirmed");
@@ -113,6 +119,11 @@ function stubFlash(name) {
   const solAta = getAssociatedTokenAddressSync(NATIVE_MINT, authority, true);
   const quoteAta = getAssociatedTokenAddressSync(quoteBank.mint, authority, true);
 
+  const collateralBank = sellBase ? solBank : quoteBank;
+  const borrowBank = sellBase ? quoteBank : solBank;
+  const collateralAta = sellBase ? solAta : quoteAta;
+  const borrowAta = sellBase ? quoteAta : solAta;
+
   const prelude = [];
   const body = [];
 
@@ -150,33 +161,38 @@ function stubFlash(name) {
     )
   );
 
-  const depositAtoms = solAtoms > 0n ? solAtoms : 100_000_000n;
-  const depositSafe =
-    depositAtoms > 2_000_000_000n ? 2_000_000_000n : depositAtoms;
-
-  prelude.push(
-    serIx(
-      SystemProgram.transfer({
-        fromPubkey: authority,
-        toPubkey: solAta,
-        lamports: Number(depositSafe),
-      }),
-      "wrap_transfer_sol"
-    )
-  );
-  prelude.push(serIx(createSyncNativeInstruction(solAta), "sync_native"));
+  let depositSafe = collateralAtoms > 0n ? collateralAtoms : 0n;
+  if (sellBase) {
+    if (depositSafe === 0n) depositSafe = 100_000_000n;
+    if (depositSafe > 2_000_000_000n) depositSafe = 2_000_000_000n;
+    prelude.push(
+      serIx(
+        SystemProgram.transfer({
+          fromPubkey: authority,
+          toPubkey: solAta,
+          lamports: Number(depositSafe),
+        }),
+        "wrap_transfer_sol"
+      )
+    );
+    prelude.push(serIx(createSyncNativeInstruction(solAta), "sync_native"));
+  } else if (depositSafe === 0n) {
+    throw new Error(
+      "USDC→SOL requires --collateral-amount-atoms > 0 (USDC atoms in wallet ATA)"
+    );
+  }
 
   let startFlash;
   let endFlash;
   let note;
 
-  if (env === "production" && borrowAtoms > 0n) {
+  if (env === "production" && borrowAtoms > 0n && depositSafe > 0n) {
     const borrowIx = await client.program.methods
       .lendingAccountBorrow(new BN(borrowAtoms.toString()))
       .accounts({
         marginfiAccount: accountKp.publicKey,
-        bank: quoteBank.address,
-        destinationTokenAccount: quoteAta,
+        bank: borrowBank.address,
+        destinationTokenAccount: borrowAta,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .accountsPartial({
@@ -184,21 +200,26 @@ function stubFlash(name) {
         authority,
       })
       .remainingAccounts([
-        { pubkey: quoteBank.oracleKey, isSigner: false, isWritable: false },
-        { pubkey: solBank.oracleKey, isSigner: false, isWritable: false },
+        { pubkey: borrowBank.oracleKey, isSigner: false, isWritable: false },
+        { pubkey: collateralBank.oracleKey, isSigner: false, isWritable: false },
       ])
       .instruction();
     if (borrowIx.keys[5] && !borrowIx.keys[5].isSigner) {
       borrowIx.keys[5].isWritable = true;
     }
-    body.push(serIx(borrowIx, "lending_account_borrow"));
+    body.push(
+      serIx(
+        borrowIx,
+        sellBase ? "lending_account_borrow_usdc" : "lending_account_borrow_sol"
+      )
+    );
 
     const depositIx = await client.program.methods
       .lendingAccountDeposit(new BN(depositSafe.toString()), null)
       .accounts({
         marginfiAccount: accountKp.publicKey,
-        bank: solBank.address,
-        signerTokenAccount: solAta,
+        bank: collateralBank.address,
+        signerTokenAccount: collateralAta,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .accountsPartial({
@@ -206,7 +227,12 @@ function stubFlash(name) {
         authority,
       })
       .instruction();
-    body.push(serIx(depositIx, "lending_account_deposit"));
+    body.push(
+      serIx(
+        depositIx,
+        sellBase ? "lending_account_deposit_sol" : "lending_account_deposit_usdc"
+      )
+    );
 
     startFlash = serIx(
       {
@@ -235,34 +261,42 @@ function stubFlash(name) {
         authority,
       })
       .remainingAccounts([
-        { pubkey: solBank.address, isSigner: false, isWritable: false },
-        { pubkey: quoteBank.address, isSigner: false, isWritable: false },
-        { pubkey: solBank.oracleKey, isSigner: false, isWritable: false },
-        { pubkey: quoteBank.oracleKey, isSigner: false, isWritable: false },
+        { pubkey: collateralBank.address, isSigner: false, isWritable: false },
+        { pubkey: borrowBank.address, isSigner: false, isWritable: false },
+        { pubkey: collateralBank.oracleKey, isSigner: false, isWritable: false },
+        { pubkey: borrowBank.oracleKey, isSigner: false, isWritable: false },
       ])
       .instruction();
     endFlash = serIx(endIx, "lending_account_end_flashloan");
-    note =
-      "Mainnet LFRS: flash + borrow USDC + deposit SOL. Composer splices Orca residual before end_flash when mint-aligned.";
+    note = sellBase
+      ? "Mainnet LFRS SOL→USDC: flash + borrow USDC + deposit SOL. Orca residual spliced before end_flash."
+      : "Mainnet LFRS USDC→SOL: flash + borrow SOL + deposit USDC. Orca residual (USDC→SOL) spliced before end_flash.";
   } else {
-    const depositIx = await client.program.methods
-      .lendingAccountDeposit(new BN(depositSafe.toString()), null)
-      .accounts({
-        marginfiAccount: accountKp.publicKey,
-        bank: solBank.address,
-        signerTokenAccount: solAta,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .accountsPartial({
-        group: config.groupPk,
-        authority,
-      })
-      .instruction();
-    body.push(serIx(depositIx, "lending_account_deposit"));
+    if (sellBase && depositSafe > 0n) {
+      const depositIx = await client.program.methods
+        .lendingAccountDeposit(new BN(depositSafe.toString()), null)
+        .accounts({
+          marginfiAccount: accountKp.publicKey,
+          bank: solBank.address,
+          signerTokenAccount: solAta,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .accountsPartial({
+          group: config.groupPk,
+          authority,
+        })
+        .instruction();
+      body.push(serIx(depositIx, "lending_account_deposit"));
+      note =
+        "Devnet deposit-only e2e (flashloan ixs not on-chain / borrow caps). Money-in = wrap+deposit SOL.";
+    } else if (!sellBase) {
+      note =
+        "USDC→SOL LFRS requires mainnet production flash path; skipped deposit-only reverse on this env.";
+    } else {
+      note = "No collateral atoms; nothing deposited.";
+    }
     startFlash = stubFlash("lending_account_start_flashloan");
     endFlash = stubFlash("lending_account_end_flashloan");
-    note =
-      "Devnet deposit-only e2e (flashloan ixs not on-chain / borrow caps). Money-in = wrap+deposit SOL.";
   }
 
   const lookupTables = (client.lookupTablesAddresses || []).map((p) =>
@@ -273,6 +307,7 @@ function stubFlash(name) {
     JSON.stringify({
       cluster: env === "production" ? "mainnet-beta" : "devnet",
       env,
+      sellBase,
       program: config.programId.toBase58(),
       group: config.groupPk.toBase58(),
       account: accountKp.publicKey.toBase58(),
