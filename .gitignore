@@ -9,3 +9,7 @@
 .vscode
 node_modules
 dist
+.keys/
+.keys/
+config/standing-bids.json
+config/metrics.json

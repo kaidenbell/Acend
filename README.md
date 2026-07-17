@@ -3,64 +3,57 @@
 **Closer to mid.**  
 Most of your swap settles in lending markets — pools only close the gap.
 
-Credit-settled exchange on Solana: ~80% via lending LTV, residual via Orca. Instant fills.
+## Paths
 
-## Why AcendCredit (vs a pool router)
+| Cluster | What works |
+|---|---|
+| **Devnet** | Quote + Tier-1 seed + **deposit send** (money-in). Flash/borrow blocked on-chain. |
+| **Mainnet** | Mint-aligned compose: flash + borrow USDC + deposit SOL + **Orca residual splice** (simulate). |
 
-| | Pool routers | AcendCredit |
-|---|---|---|
-| Slippage at size | On full notional | Mostly on the ~20% gap |
-| MEV surface | Full swap leg | Residual only |
-| Mid discipline | Best route | Mid or no fill |
-| Depth | LP inventory | Lending borrow capacity |
-
-## Stack
-
-- **Rust workspace** — quote engine, adapters, tx composer, API, CLI
-- **No custom on-chain program** (v0) — off-chain composer builds atomic txs
-- **Devnet first**
-
-## Quick start
+## Quick start (Devnet money-in)
 
 ```bash
 cd C:\Users\kaide\AcendCredit
-
-# Quote SOL → USDC ($10k)
-cargo run -p acend-cli -- quote --pair SOL/USDC --amount-usd 10000
-
-# Ping Devnet
-cargo run -p acend-cli -- health
-
-# Compose + simulate Devnet demo tx
-cargo run -p acend-cli -- swap --pair SOL/USDC --amount-usd 1000
-
-# API + UI (http://127.0.0.1:8080)
-cargo run -p acend-api
+cd scripts && npm install && node devnet-setup.js && cd ..
+# fund .keys pubkey via https://faucet.solana.com if needed
+cargo run -p acend-cli -- swap --pair SOL/USDC --amount-usd 25 --keypair .keys/devnet.json --send
 ```
 
-## Verified on Devnet
+## Mainnet compose (simulate — no auto-send)
 
-- Live Pyth mid (Hermes)
-- Quote: 75% lending / 25% residual, ~1.375 bps vs mid on SOL/USDC
-- RPC health against `https://api.devnet.solana.com`
-- HTTP `/quote` + thin UI with locked hero + 4 cards
-- **Live Orca Whirlpool residual CPI** on pool `3KBZiL…`
-- **Live marginfi Devnet flash + LTV ixs**: init → start_flash → borrow → deposit → repay → end_flash
-- LFRS stages published per fill; Orca residual deferred on Devnet when mint ≠ marginfi quote mint
+```bash
+$env:ACEND_PAIRS_CONFIG="config/pairs.mainnet.toml"
+$env:ACEND_RPC_URL="https://api.mainnet-beta.solana.com"
+$env:ACEND_MFI_ENV="production"
+cargo run -p acend-cli -- swap --pair SOL/USDC --amount-usd 100
+```
 
-## Next
+## Tier-1 bids
 
-- Funded wallet e2e send (not ephemeral)
-- Single-tx merge once quote mints align (mainnet)
-- Tier-1 dual-sign takeover bots
-## Crates
+```bash
+cargo run -p acend-cli -- seed-bid --pair SOL/USDC --max-spread-bps 0.75 --amount-usd 100000
+node scripts/bidder-bot.js --pair SOL/USDC --max-spread-bps 0.75
+```
 
-| Crate | Role |
-|-------|------|
-| `acend-core` | Types, pair config, bps math |
-| `acend-adapters` | Pyth, Orca fee model, lending LTV model |
-| `acend-quote` | Tier ladder: takeover → net → Orca |
-| `acend-composer` | VersionedTransaction + Devnet simulate |
-| `acend-book` | Standing bid book |
-| `acend-api` | `/quote` `/metrics` + UI |
-| `acend-cli` | Terminal quote / swap / health |
+## API (for your frontend)
+
+```bash
+cargo run -p acend-api
+# Contract: docs/API.md
+# GET /quote?pair=SOL/USDC&amount_usd=100
+# GET /swap?pair=SOL/USDC&amount_usd=100&payer=<WALLET_PUBKEY>
+# GET /bids  GET /pairs  GET /health  GET /metrics
+```
+
+Pass `payer` so the response is **partially signed** (`needs_client_signature: true`). Your app signs the fee-payer and sends.
+
+## Venues
+
+- marginfi mainnet program `MFv2…` group `4qp6…` SOL/USDC banks preloaded
+- Orca SOL/USDC 0.04% `Czfq3xZZDmsdGdUyrNLtRhGc47cXcZtLG4crryfu44zE`
+- ALTs: marginfi lookup tables compiled into v0 txs when available
+
+## Still hardening
+
+- Mainnet **funded send** (real USDC/SOL) — tiny size + CLI `--send` only when ready
+- Dual-sign takeover co-signing (bid book loads from file; handoff not live yet)

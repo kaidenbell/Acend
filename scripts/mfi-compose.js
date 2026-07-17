@@ -1,22 +1,36 @@
 #!/usr/bin/env node
 /**
- * Build live marginfi Devnet instructions for AcendCredit LFRS.
+ * Build marginfi instructions for AcendCredit.
+ *
+ * Devnet  (--env dev):        deposit-only (no flash on-chain)
+ * Mainnet (--env production): flash + borrow USDC + deposit SOL
  *
  *   node scripts/mfi-compose.js \
+ *     --env production|dev \
  *     --authority <pubkey> \
  *     --sol-amount-atoms <u64> \
- *     --borrow-amount-atoms <u64>
+ *     --borrow-amount-atoms <u64> \
+ *     --rpc <url>
  */
-const { Connection, Keypair, PublicKey, SystemProgram } = require("@solana/web3.js");
+const {
+  Connection,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+} = require("@solana/web3.js");
 const {
   getAssociatedTokenAddressSync,
   createAssociatedTokenAccountIdempotentInstruction,
+  createSyncNativeInstruction,
   TOKEN_PROGRAM_ID,
   NATIVE_MINT,
 } = require("@solana/spl-token");
 const { MarginfiClient, getConfig } = require("@mrgnlabs/marginfi-client-v2");
 const { NodeWallet } = require("@mrgnlabs/mrgn-common");
 const { BN } = require("@coral-xyz/anchor");
+
+const MAINNET_SOL_BANK = "CCKtUs6Cgwo4aaQUmBPmyoApH2gUDErxNZCAntD6LYGh";
+const MAINNET_USDC_BANK = "2s37akK2eyBbp8DZgCm7RtsaEz8eJP3Nxd4urLHQv7yB";
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
@@ -37,31 +51,70 @@ function serIx(ix, name) {
   };
 }
 
+function stubFlash(name) {
+  return {
+    name,
+    programId: SystemProgram.programId.toBase58(),
+    data: Buffer.from([0]).toString("base64"),
+    keys: [],
+  };
+}
+
 (async () => {
-  const rpc = arg("rpc", "https://api.devnet.solana.com");
+  const env = arg("env", "dev");
+  const rpcDefault =
+    env === "production"
+      ? "https://api.mainnet-beta.solana.com"
+      : "https://api.devnet.solana.com";
+  const rpc = arg("rpc", rpcDefault);
   const authorityStr = arg("authority");
   if (!authorityStr) throw new Error("--authority required");
   const authority = new PublicKey(authorityStr);
   const solAtoms = BigInt(arg("sol-amount-atoms", "0"));
   const borrowAtoms = BigInt(arg("borrow-amount-atoms", "0"));
 
-  const walletKp = Keypair.generate();
-  const wallet = new NodeWallet(walletKp);
   const connection = new Connection(rpc, "confirmed");
-  const config = getConfig("dev");
-  const client = await MarginfiClient.fetch(config, wallet, connection);
+  const config = getConfig(env === "production" ? "production" : "dev");
+  const clientOpts =
+    env === "production"
+      ? {
+          preloadedBankAddresses: [
+            new PublicKey(MAINNET_SOL_BANK),
+            new PublicKey(MAINNET_USDC_BANK),
+          ],
+          readOnly: true,
+        }
+      : { readOnly: true };
 
-  const solBank = [...client.banks.values()].find((b) => b.mint.equals(NATIVE_MINT));
-  const quoteBank = [...client.banks.values()].find((b) =>
-    b.mint.toBase58().startsWith("4Bn9")
+  const client = await MarginfiClient.fetch(
+    config,
+    new NodeWallet(Keypair.generate()),
+    connection,
+    clientOpts
   );
-  if (!solBank || !quoteBank) throw new Error("Devnet SOL/quote banks not found");
+
+  const solBank =
+    [...client.banks.values()].find((b) => b.mint.equals(NATIVE_MINT)) ||
+    client.banks.get(MAINNET_SOL_BANK);
+  const quoteBank =
+    env === "production"
+      ? client.banks.get(MAINNET_USDC_BANK) ||
+        [...client.banks.values()].find(
+          (b) =>
+            b.mint.toBase58() === "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        )
+      : [...client.banks.values()].find((b) =>
+          b.mint.toBase58().startsWith("4Bn9")
+        );
+
+  if (!solBank || !quoteBank) throw new Error("SOL/quote banks not found");
 
   const accountKp = Keypair.generate();
-  const quoteAta = getAssociatedTokenAddressSync(quoteBank.mint, authority, true);
   const solAta = getAssociatedTokenAddressSync(NATIVE_MINT, authority, true);
+  const quoteAta = getAssociatedTokenAddressSync(quoteBank.mint, authority, true);
 
   const prelude = [];
+  const body = [];
 
   const initIx = await client.program.methods
     .marginfiAccountInitialize()
@@ -74,18 +127,6 @@ function serIx(ix, name) {
     })
     .instruction();
   prelude.push(serIx(initIx, "marginfi_account_initialize"));
-
-  prelude.push(
-    serIx(
-      createAssociatedTokenAccountIdempotentInstruction(
-        authority,
-        quoteAta,
-        authority,
-        quoteBank.mint
-      ),
-      "create_quote_ata"
-    )
-  );
   prelude.push(
     serIx(
       createAssociatedTokenAccountIdempotentInstruction(
@@ -97,10 +138,39 @@ function serIx(ix, name) {
       "create_sol_ata"
     )
   );
+  prelude.push(
+    serIx(
+      createAssociatedTokenAccountIdempotentInstruction(
+        authority,
+        quoteAta,
+        authority,
+        quoteBank.mint
+      ),
+      "create_quote_ata"
+    )
+  );
 
-  const body = [];
+  const depositAtoms = solAtoms > 0n ? solAtoms : 100_000_000n;
+  const depositSafe =
+    depositAtoms > 2_000_000_000n ? 2_000_000_000n : depositAtoms;
 
-  if (borrowAtoms > 0n) {
+  prelude.push(
+    serIx(
+      SystemProgram.transfer({
+        fromPubkey: authority,
+        toPubkey: solAta,
+        lamports: Number(depositSafe),
+      }),
+      "wrap_transfer_sol"
+    )
+  );
+  prelude.push(serIx(createSyncNativeInstruction(solAta), "sync_native"));
+
+  let startFlash;
+  let endFlash;
+  let note;
+
+  if (env === "production" && borrowAtoms > 0n) {
     const borrowIx = await client.program.methods
       .lendingAccountBorrow(new BN(borrowAtoms.toString()))
       .accounts({
@@ -118,12 +188,13 @@ function serIx(ix, name) {
         { pubkey: solBank.oracleKey, isSigner: false, isWritable: false },
       ])
       .instruction();
+    if (borrowIx.keys[5] && !borrowIx.keys[5].isSigner) {
+      borrowIx.keys[5].isWritable = true;
+    }
     body.push(serIx(borrowIx, "lending_account_borrow"));
-  }
 
-  if (solAtoms > 0n) {
     const depositIx = await client.program.methods
-      .lendingAccountDeposit(new BN(solAtoms.toString()), null)
+      .lendingAccountDeposit(new BN(depositSafe.toString()), null)
       .accounts({
         marginfiAccount: accountKp.publicKey,
         bank: solBank.address,
@@ -136,15 +207,50 @@ function serIx(ix, name) {
       })
       .instruction();
     body.push(serIx(depositIx, "lending_account_deposit"));
-  }
 
-  if (borrowAtoms > 0n) {
-    const repayIx = await client.program.methods
-      .lendingAccountRepay(new BN(borrowAtoms.toString()), null)
+    startFlash = serIx(
+      {
+        programId: config.programId,
+        keys: [
+          { pubkey: accountKp.publicKey, isSigner: false, isWritable: true },
+          { pubkey: authority, isSigner: true, isWritable: false },
+          {
+            pubkey: new PublicKey("Sysvar1nstructions1111111111111111111111111"),
+            isSigner: false,
+            isWritable: false,
+          },
+        ],
+        data: Buffer.concat([
+          Buffer.from([14, 131, 33, 220, 81, 186, 180, 107]),
+          Buffer.alloc(8),
+        ]),
+      },
+      "lending_account_start_flashloan"
+    );
+
+    const endIx = await client.program.methods
+      .lendingAccountEndFlashloan()
       .accounts({
         marginfiAccount: accountKp.publicKey,
-        bank: quoteBank.address,
-        signerTokenAccount: quoteAta,
+        authority,
+      })
+      .remainingAccounts([
+        { pubkey: solBank.address, isSigner: false, isWritable: false },
+        { pubkey: quoteBank.address, isSigner: false, isWritable: false },
+        { pubkey: solBank.oracleKey, isSigner: false, isWritable: false },
+        { pubkey: quoteBank.oracleKey, isSigner: false, isWritable: false },
+      ])
+      .instruction();
+    endFlash = serIx(endIx, "lending_account_end_flashloan");
+    note =
+      "Mainnet LFRS: flash + borrow USDC + deposit SOL. Composer splices Orca residual before end_flash when mint-aligned.";
+  } else {
+    const depositIx = await client.program.methods
+      .lendingAccountDeposit(new BN(depositSafe.toString()), null)
+      .accounts({
+        marginfiAccount: accountKp.publicKey,
+        bank: solBank.address,
+        signerTokenAccount: solAta,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .accountsPartial({
@@ -152,42 +258,21 @@ function serIx(ix, name) {
         authority,
       })
       .instruction();
-    body.push(serIx(repayIx, "lending_account_repay"));
+    body.push(serIx(depositIx, "lending_account_deposit"));
+    startFlash = stubFlash("lending_account_start_flashloan");
+    endFlash = stubFlash("lending_account_end_flashloan");
+    note =
+      "Devnet deposit-only e2e (flashloan ixs not on-chain / borrow caps). Money-in = wrap+deposit SOL.";
   }
 
-  const startIx = {
-    programId: config.programId,
-    keys: [
-      { pubkey: accountKp.publicKey, isSigner: false, isWritable: true },
-      { pubkey: authority, isSigner: true, isWritable: false },
-      {
-        pubkey: new PublicKey("Sysvar1nstructions1111111111111111111111111"),
-        isSigner: false,
-        isWritable: false,
-      },
-    ],
-    data: Buffer.concat([
-      Buffer.from([14, 131, 33, 220, 81, 186, 180, 107]), // lendingAccountStartFlashloan
-      Buffer.alloc(8), // endIndex patched by Rust
-    ]),
-  };
-
-  const endIx = {
-    programId: config.programId,
-    keys: [
-      { pubkey: accountKp.publicKey, isSigner: false, isWritable: true },
-      { pubkey: authority, isSigner: true, isWritable: false },
-      { pubkey: solBank.address, isSigner: false, isWritable: false },
-      { pubkey: quoteBank.address, isSigner: false, isWritable: false },
-      { pubkey: solBank.oracleKey, isSigner: false, isWritable: false },
-      { pubkey: quoteBank.oracleKey, isSigner: false, isWritable: false },
-    ],
-    data: Buffer.from([105, 124, 201, 106, 153, 2, 8, 156]), // lendingAccountEndFlashloan
-  };
+  const lookupTables = (client.lookupTablesAddresses || []).map((p) =>
+    p.toBase58()
+  );
 
   process.stdout.write(
     JSON.stringify({
-      cluster: "devnet",
+      cluster: env === "production" ? "mainnet-beta" : "devnet",
+      env,
       program: config.programId.toBase58(),
       group: config.groupPk.toBase58(),
       account: accountKp.publicKey.toBase58(),
@@ -196,11 +281,12 @@ function serIx(ix, name) {
       solBank: solBank.address.toBase58(),
       quoteBank: quoteBank.address.toBase58(),
       quoteMint: quoteBank.mint.toBase58(),
+      lookupTables,
       prelude,
-      startFlash: serIx(startIx, "lending_account_start_flashloan"),
+      startFlash,
       body,
-      endFlash: serIx(endIx, "lending_account_end_flashloan"),
-      note: "Devnet marginfi live ixs. Demo repay uses unspent flash borrow (quote mint ≠ Orca USDC).",
+      endFlash,
+      note,
     })
   );
 })().catch((e) => {

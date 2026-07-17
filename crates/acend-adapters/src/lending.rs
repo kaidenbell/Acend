@@ -70,6 +70,8 @@ struct HelperOut {
     note: String,
     #[serde(rename = "quoteMint")]
     quote_mint: String,
+    #[serde(default, rename = "lookupTables")]
+    lookup_tables: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -80,6 +82,7 @@ pub struct MarginfiLiveBuild {
     pub stage_details: Vec<(String, String)>,
     pub note: String,
     pub quote_mint: String,
+    pub lookup_tables: Vec<String>,
 }
 
 impl LendingAdapter {
@@ -114,6 +117,7 @@ impl LendingAdapter {
         sol_amount_atoms: u64,
         borrow_amount_atoms: u64,
         scripts_dir: &Path,
+        mfi_env: &str,
     ) -> Result<MarginfiLiveBuild> {
         let mut script = scripts_dir.join("mfi-compose.js");
         if !script.exists() {
@@ -136,6 +140,8 @@ impl LendingAdapter {
             .arg(sol_amount_atoms.to_string())
             .arg("--borrow-amount-atoms")
             .arg(borrow_amount_atoms.to_string())
+            .arg("--env")
+            .arg(mfi_env)
             .current_dir(scripts_dir)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -165,11 +171,23 @@ impl LendingAdapter {
             stage_details.push((ix.name.clone(), "built".into()));
         }
 
-        // Placeholder start — end_index patched after we know final layout.
-        // We insert start, body, end; Rust composer may splice Orca into body.
+        // Flash start/end only when helper returns a real flash ix (16+ bytes).
+        // Devnet deposit-only mode ships stubs — skip cleanly.
+        let start_data = B64
+            .decode(parsed.start_flash.data.as_bytes())
+            .unwrap_or_default();
+        let has_flash = start_data.len() >= 16;
+
         let start_idx_in_vec = instructions.len();
-        instructions.push(helper_to_ix(&parsed.start_flash)?);
-        stage_details.push(("lending_account_start_flashloan".into(), "built".into()));
+        if has_flash {
+            instructions.push(helper_to_ix(&parsed.start_flash)?);
+            stage_details.push(("lending_account_start_flashloan".into(), "built".into()));
+        } else {
+            stage_details.push((
+                "lending_account_start_flashloan".into(),
+                "skipped_devnet".into(),
+            ));
+        }
 
         for ix in &parsed.body {
             instructions.push(helper_to_ix(ix)?);
@@ -177,12 +195,17 @@ impl LendingAdapter {
         }
 
         let end_idx_in_vec = instructions.len();
-        instructions.push(helper_to_ix(&parsed.end_flash)?);
-        stage_details.push(("lending_account_end_flashloan".into(), "built".into()));
-
-        // Patch start flash end_index = absolute index of end ix within *this* slice.
-        // Composer prepends compute budget; it will re-patch absolute index.
-        patch_flash_end_index(&mut instructions[start_idx_in_vec], end_idx_in_vec as u64)?;
+        let end_data = B64.decode(parsed.end_flash.data.as_bytes()).unwrap_or_default();
+        if has_flash && end_data.len() >= 8 {
+            instructions.push(helper_to_ix(&parsed.end_flash)?);
+            stage_details.push(("lending_account_end_flashloan".into(), "built".into()));
+            patch_flash_end_index(&mut instructions[start_idx_in_vec], end_idx_in_vec as u64)?;
+        } else {
+            stage_details.push((
+                "lending_account_end_flashloan".into(),
+                "skipped_devnet".into(),
+            ));
+        }
 
         info!(
             %account,
@@ -197,6 +220,7 @@ impl LendingAdapter {
             stage_details,
             note: parsed.note,
             quote_mint: parsed.quote_mint,
+            lookup_tables: parsed.lookup_tables,
         })
     }
 

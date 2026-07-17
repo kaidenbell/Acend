@@ -1,4 +1,4 @@
-# AcendCredit pair allowlist — Tier-1 majors (Devnet)
+# AcendCredit pair allowlist â€” Tier-1 majors (Devnet)
 # bps_cap: fail quote if all-in vs Pyth mid exceeds this
 
 cluster = "devnet"
@@ -9,7 +9,7 @@ base = "SOL"
 quote = "USDC"
 max_size_usd = 150000
 bps_cap = 2.0
-ltv_bps = 7500
+ltv_bps = 8000
 base_mint = "So11111111111111111111111111111111111111112"
 # Orca Devnet SOL/devUSDC Whirlpool mint B
 quote_mint = "BRjpCHtyQLNCo8gqRUr8jtdAj5AjPYQaoqbvcZiHok1k"

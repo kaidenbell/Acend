@@ -1,8 +1,8 @@
 use acend_core::{all_in_bps, split_notional, PairConfig};
 use anyhow::{anyhow, Context, Result};
 use orca_whirlpools::{
-    set_native_mint_wrapping_strategy, swap_instructions, NativeMintWrappingStrategy,
-    SwapInstructions, SwapType,
+    set_native_mint_wrapping_strategy, swap_instructions, NativeMintWrappingStrategy, SwapQuote,
+    SwapType,
 };
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair};
@@ -20,6 +20,8 @@ pub struct OrcaResidualQuote {
     pub impact_usd: f64,
     pub fee_bps: f64,
     pub all_in_bps_of_full: f64,
+    /// "live" from Whirlpool quote, or "model" fallback.
+    pub source: String,
 }
 
 #[derive(Debug)]
@@ -54,6 +56,107 @@ impl OrcaAdapter {
             impact_usd,
             fee_bps: pair.orca_fee_bps,
             all_in_bps_of_full: all_in,
+            source: "model".into(),
+        })
+    }
+
+    /// Live Whirlpool residual quote: fee+impact from ExactIn estimate vs Pyth mid.
+    pub async fn quote_residual_live(
+        &self,
+        rpc_url: &str,
+        pair: &PairConfig,
+        notional_usd: f64,
+        base_price_usd: f64,
+        quote_price_usd: f64,
+    ) -> Result<OrcaResidualQuote> {
+        let (_lending, residual) = split_notional(notional_usd, pair.ltv_bps);
+        if pair.whirlpool.trim().is_empty() {
+            return Err(anyhow!("no whirlpool for {}", pair.id));
+        }
+        if residual <= 0.0 || base_price_usd <= 0.0 || quote_price_usd <= 0.0 {
+            return Err(anyhow!("invalid residual/prices"));
+        }
+
+        let whirlpool = Pubkey::from_str(&pair.whirlpool).context("whirlpool pubkey")?;
+        let base_mint = Pubkey::from_str(&pair.base_mint).context("base mint")?;
+        let scale_in = 10f64.powi(pair.base_decimals as i32);
+        let scale_out = 10f64.powi(pair.quote_decimals as i32);
+        let input_amount_atoms = ((residual / base_price_usd) * scale_in).floor() as u64;
+        if input_amount_atoms == 0 {
+            return Err(anyhow!("residual too small"));
+        }
+
+        let _ = set_native_mint_wrapping_strategy(NativeMintWrappingStrategy::Ata);
+        let rpc_url = rpc_url.to_string();
+        let built = tokio::task::spawn_blocking(move || {
+            std::thread::Builder::new()
+                .name("orca-quote".into())
+                .stack_size(32 * 1024 * 1024)
+                .spawn(move || {
+                    let rt = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .expect("rt");
+                    let rpc = RpcClient::new(rpc_url);
+                    // Payer unused for quote path amounts; dummy pubkey ok for ATA prep.
+                    let payer = Pubkey::new_unique();
+                    rt.block_on(swap_instructions(
+                        &rpc,
+                        whirlpool,
+                        input_amount_atoms,
+                        base_mint,
+                        SwapType::ExactIn,
+                        Some(50u16),
+                        Some(payer),
+                    ))
+                    .map_err(|e| anyhow!("orca quote: {e}"))
+                })
+                .map_err(|e| anyhow!("spawn: {e}"))?
+                .join()
+                .map_err(|_| anyhow!("orca quote thread panicked"))?
+        })
+        .await
+        .map_err(|e| anyhow!("join: {e}"))??;
+
+        let SwapQuote::ExactIn(q) = built.quote else {
+            return Err(anyhow!("expected ExactIn quote"));
+        };
+
+        let in_usd = (q.token_in as f64 / scale_in) * base_price_usd;
+        let out_usd = (q.token_est_out as f64 / scale_out) * quote_price_usd;
+        let shortfall_usd = (in_usd - out_usd).max(0.0);
+        let fee_usd = (q.trade_fee as f64 / scale_in) * base_price_usd;
+        let impact_usd = (shortfall_usd - fee_usd).max(0.0);
+        let all_in = if notional_usd > 0.0 {
+            (shortfall_usd / notional_usd) * 10_000.0
+        } else {
+            0.0
+        };
+        // Effective fee bps of residual (for breakdown display).
+        let fee_bps = if residual > 0.0 {
+            (fee_usd / residual) * 10_000.0
+        } else {
+            pair.orca_fee_bps
+        };
+
+        info!(
+            pair = %pair.id,
+            residual,
+            in_usd,
+            out_usd,
+            shortfall_usd,
+            all_in,
+            trade_fee_rate_max = q.trade_fee_rate_max,
+            "live Orca residual quote"
+        );
+
+        Ok(OrcaResidualQuote {
+            residual_usd: residual,
+            fee_usd,
+            impact_usd,
+            fee_bps,
+            all_in_bps_of_full: all_in,
+            source: "live".into(),
         })
     }
 
@@ -92,12 +195,10 @@ impl OrcaAdapter {
             "building Orca residual swap"
         );
 
-        // Prefer ATAs for WSOL so we don't need ephemeral keypair signers.
         let _ = set_native_mint_wrapping_strategy(NativeMintWrappingStrategy::Ata);
 
-        // Tick-array quoting is stack-heavy on Windows default stacks.
         let rpc_url = rpc_url.to_string();
-        let built: SwapInstructions = tokio::task::spawn_blocking(move || {
+        let built = tokio::task::spawn_blocking(move || {
             std::thread::Builder::new()
                 .name("orca-swap".into())
                 .stack_size(32 * 1024 * 1024)
@@ -136,3 +237,4 @@ impl OrcaAdapter {
         })
     }
 }
+

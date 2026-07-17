@@ -9,96 +9,38 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg0: #0c1210;
-      --bg1: #141c18;
-      --ink: #e8efe9;
-      --muted: #8a9a90;
-      --line: rgba(232, 239, 233, 0.12);
-      --accent: #c4a574;
-      --good: #6fbf8a;
+      --bg0: #0c1210; --bg1: #141c18; --ink: #e8efe9; --muted: #8a9a90;
+      --line: rgba(232, 239, 233, 0.12); --accent: #c4a574; --good: #6fbf8a;
     }
     * { box-sizing: border-box; }
     body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: "DM Sans", system-ui, sans-serif;
-      color: var(--ink);
+      margin: 0; min-height: 100vh; font-family: "DM Sans", system-ui, sans-serif; color: var(--ink);
       background:
         radial-gradient(1200px 600px at 10% -10%, rgba(196, 165, 116, 0.14), transparent 55%),
         radial-gradient(900px 500px at 100% 0%, rgba(111, 191, 138, 0.08), transparent 50%),
         linear-gradient(180deg, var(--bg0), var(--bg1));
     }
     .wrap { max-width: 720px; margin: 0 auto; padding: 48px 20px 80px; }
-    .brand {
-      font-family: "Cormorant Garamond", Georgia, serif;
-      font-size: 42px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      margin: 0 0 8px;
-    }
-    h1 {
-      font-family: "Cormorant Garamond", Georgia, serif;
-      font-size: 34px;
-      font-weight: 500;
-      margin: 0 0 10px;
-      line-height: 1.15;
-    }
+    .brand { font-family: "Cormorant Garamond", Georgia, serif; font-size: 42px; font-weight: 600; margin: 0 0 8px; }
+    h1 { font-family: "Cormorant Garamond", Georgia, serif; font-size: 34px; font-weight: 500; margin: 0 0 10px; line-height: 1.15; }
     .sub { color: var(--muted); font-size: 15px; line-height: 1.5; margin: 0 0 28px; max-width: 34em; }
-    .panel {
-      border: 1px solid var(--line);
-      background: rgba(20, 28, 24, 0.72);
-      backdrop-filter: blur(8px);
-      padding: 22px;
-      margin-bottom: 36px;
-    }
+    .panel { border: 1px solid var(--line); background: rgba(20, 28, 24, 0.72); backdrop-filter: blur(8px); padding: 22px; margin-bottom: 36px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.04em; text-transform: uppercase; }
-    input, select {
-      width: 100%;
-      background: #0a0f0d;
-      border: 1px solid var(--line);
-      color: var(--ink);
-      padding: 12px 14px;
-      font: inherit;
-      font-size: 16px;
-    }
-    button {
-      width: 100%;
-      margin-top: 16px;
-      border: 0;
-      background: var(--accent);
-      color: #1a140c;
-      font: inherit;
-      font-weight: 600;
-      padding: 14px;
-      cursor: pointer;
-      letter-spacing: 0.02em;
-    }
+    input, select { width: 100%; background: #0a0f0d; border: 1px solid var(--line); color: var(--ink); padding: 12px 14px; font: inherit; font-size: 16px; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+    button { width: 100%; border: 0; background: var(--accent); color: #1a140c; font: inherit; font-weight: 600; padding: 14px; cursor: pointer; }
+    button.secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
     button:disabled { opacity: 0.5; cursor: wait; }
-    .meta { margin-top: 16px; font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .meta { margin-top: 16px; font-size: 14px; color: var(--muted); line-height: 1.6; word-break: break-word; }
     .meta strong { color: var(--ink); font-weight: 500; }
     .good { color: var(--good); }
-    .cards {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
-    .card {
-      border-top: 1px solid var(--line);
-      padding: 18px 4px 8px;
-    }
-    .card h3 {
-      font-family: "Cormorant Garamond", Georgia, serif;
-      font-size: 22px;
-      font-weight: 500;
-      margin: 0 0 8px;
-    }
+    .wallet { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .card { border-top: 1px solid var(--line); padding: 18px 4px 8px; }
+    .card h3 { font-family: "Cormorant Garamond", Georgia, serif; font-size: 22px; font-weight: 500; margin: 0 0 8px; }
     .card p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
-    @media (max-width: 640px) {
-      .row, .cards { grid-template-columns: 1fr; }
-      .brand { font-size: 34px; }
-      h1 { font-size: 28px; }
-    }
+    @media (max-width: 640px) { .row, .cards, .actions { grid-template-columns: 1fr; } .brand { font-size: 34px; } h1 { font-size: 28px; } }
   </style>
 </head>
 <body>
@@ -108,62 +50,95 @@
     <p class="sub">Most of your swap settles in lending markets — pools only close the gap.</p>
 
     <div class="panel">
+      <div class="wallet" id="wallet">Wallet: not connected</div>
       <div class="row">
         <div>
           <label>Pair</label>
-          <select id="pair">
-            <option>SOL/USDC</option>
-            <option>SOL/USDT</option>
-            <option>USDC/USDT</option>
-          </select>
+          <select id="pair"><option>SOL/USDC</option><option>SOL/USDT</option><option>USDC/USDT</option></select>
         </div>
         <div>
           <label>Amount (USD)</label>
           <input id="amount" type="number" value="10000" min="1" step="100" />
         </div>
       </div>
-      <button id="go">Get quote</button>
-      <div class="meta" id="out">Pyth-bound · Devnet · lending settles the bulk</div>
+      <div class="actions">
+        <button id="connect" class="secondary" type="button">Connect wallet</button>
+        <button id="go" type="button">Get quote</button>
+      </div>
+      <div class="actions">
+        <button id="swap" class="secondary" type="button">Build swap (sim)</button>
+        <button id="sign" class="secondary" type="button" disabled>Sign &amp; send (wallet)</button>
+      </div>
+      <div class="meta" id="out">Pyth-bound · Connect Phantom for wallet send · CLI --send for Devnet deposit e2e</div>
     </div>
 
     <div class="cards">
-      <div class="card">
-        <h3>Less slippage at size</h3>
-        <p>~80% of the trade clears through lending. Pool impact only hits the leftover ~20% — not your full clip.</p>
-      </div>
-      <div class="card">
-        <h3>Less MEV to attack</h3>
-        <p>Most of your notional never enters a pool swap. The sandwich surface shrinks to the residual, not the whole order.</p>
-      </div>
-      <div class="card">
-        <h3>Mid or no fill</h3>
-        <p>We measure vs Pyth. If the all-in price is too far from mid, the quote fails — we don't "best route" you into a bad print.</p>
-      </div>
-      <div class="card">
-        <h3>Depth beyond the pool</h3>
-        <p>Size borrows against Kamino / marginfi / Jupiter Lend. You're not capped by how much LP is sitting in SOL/USDC.</p>
-      </div>
+      <div class="card"><h3>Less slippage at size</h3><p>~80% clears through lending. Pool impact only hits the leftover ~20%.</p></div>
+      <div class="card"><h3>Less MEV to attack</h3><p>Most notional never enters a pool swap. Sandwich surface shrinks to the residual.</p></div>
+      <div class="card"><h3>Mid or no fill</h3><p>Measured vs Pyth. Too far from mid → quote fails.</p></div>
+      <div class="card"><h3>Depth beyond the pool</h3><p>Size borrows against marginfi / Kamino depth — not just LP inventory.</p></div>
     </div>
   </div>
   <script>
     const out = document.getElementById('out');
+    const walletEl = document.getElementById('wallet');
+    const pairEl = document.getElementById('pair');
+    const amountEl = document.getElementById('amount');
+    const signBtn = document.getElementById('sign');
+    let pubkey = null;
+    let lastSwap = null;
+
+    function provider() {
+      return window.solana || window.phantom?.solana || null;
+    }
+
+    document.getElementById('connect').onclick = async () => {
+      const p = provider();
+      if (!p) { out.textContent = 'Install Phantom (or another Solana wallet).'; return; }
+      try {
+        const res = await p.connect();
+        pubkey = res.publicKey?.toString?.() || p.publicKey?.toString?.();
+        walletEl.innerHTML = 'Wallet: <strong class="good">' + pubkey.slice(0,4) + '…' + pubkey.slice(-4) + '</strong>';
+        signBtn.disabled = false;
+      } catch (e) { out.textContent = e.message || String(e); }
+    };
+
     document.getElementById('go').onclick = async () => {
-      const pair = document.getElementById('pair').value;
-      const amount = document.getElementById('amount').value;
       out.textContent = 'Quoting…';
       try {
-        const r = await fetch(`/quote?pair=${encodeURIComponent(pair)}&amount_usd=${amount}`);
+        const r = await fetch(`/quote?pair=${encodeURIComponent(pairEl.value)}&amount_usd=${amountEl.value}`);
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || 'quote failed');
-        out.innerHTML = `
-          <strong class="good">You get $${j.amount_out_usd.toLocaleString(undefined,{maximumFractionDigits:2})}</strong>
+        out.innerHTML = `<strong class="good">You get $${j.amount_out_usd.toLocaleString(undefined,{maximumFractionDigits:2})}</strong>
           (−${j.bps_vs_mid.toFixed(2)} bps vs mid)<br/>
           Via <strong>${j.tier}</strong> · lending ${j.breakdown.lending_pct.toFixed(0)}% · residual ${j.breakdown.residual_pct.toFixed(0)}%<br/>
-          Pool fee $${j.breakdown.pool_fee_usd.toFixed(2)} · SOL $${j.pyth_base.toFixed(2)} · cluster ${j.cluster}
-        `;
-      } catch (e) {
-        out.textContent = e.message;
-      }
+          SOL $${j.pyth_base.toFixed(2)} · cluster ${j.cluster}`;
+      } catch (e) { out.textContent = e.message; }
+    };
+
+    document.getElementById('swap').onclick = async () => {
+      const btn = document.getElementById('swap');
+      btn.disabled = true;
+      out.textContent = 'Composing swap (simulate)…';
+      try {
+        const r = await fetch(`/swap?pair=${encodeURIComponent(pairEl.value)}&amount_usd=${amountEl.value}`);
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || 'swap failed');
+        lastSwap = j;
+        const stages = (j.stages || []).map(s => `${s.name}:${s.status}`).join(' · ');
+        out.innerHTML = `<strong class="good">Sim ${j.simulated_ok ? 'ok' : 'soft-fail'}</strong>
+          · ${j.quote.bps_vs_mid.toFixed(2)} bps · ${j.quote.tier}<br/>${j.note || ''}<br/>
+          <span style="font-size:12px">${stages}</span>`;
+        signBtn.disabled = !pubkey || !j.transaction_base64;
+      } catch (e) { out.textContent = e.message; }
+      finally { btn.disabled = false; }
+    };
+
+    document.getElementById('sign').onclick = async () => {
+      const p = provider();
+      if (!p || !pubkey) { out.textContent = 'Connect wallet first.'; return; }
+      if (!lastSwap?.transaction_base64) { out.textContent = 'Build swap first.'; return; }
+      out.textContent = 'Wallet signing is scaffolded: server-built txs use an ephemeral fee payer. Use CLI --keypair --send for live Devnet deposits, or mainnet compose/sim with ACEND_PAIRS_CONFIG=config/pairs.mainnet.toml. Full Phantom fee-payer rewrite lands next.';
     };
   </script>
 </body>

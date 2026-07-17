@@ -7,10 +7,11 @@ use acend_core::{
     Result, SettlementTier,
 };
 use chrono::{Duration, Utc};
+use tracing::warn;
 use uuid::Uuid;
 
 const MIN_LENDING_PCT: f64 = 60.0;
-/// Assumed residual pool impact (bps of residual) when no live pool sim yet.
+/// Assumed residual pool impact (bps of residual) when live pool quote fails.
 const DEFAULT_RESIDUAL_IMPACT_BPS: f64 = 1.5;
 
 pub struct QuoteEngine {
@@ -19,16 +20,18 @@ pub struct QuoteEngine {
     pub lending: LendingAdapter,
     pub orca: OrcaAdapter,
     pub book: Arc<BidBook>,
+    pub rpc_url: String,
 }
 
 impl QuoteEngine {
-    pub fn new(config: PairsConfig, book: Arc<BidBook>) -> Self {
+    pub fn new(config: PairsConfig, book: Arc<BidBook>, rpc_url: impl Into<String>) -> Self {
         Self {
             config,
             pyth: PythClient::new(),
             lending: LendingAdapter,
             orca: OrcaAdapter,
             book,
+            rpc_url: rpc_url.into(),
         }
     }
 
@@ -47,18 +50,22 @@ impl QuoteEngine {
             .await
             .map_err(|e| AcendError::Oracle(e.to_string()))?;
 
-        // Mid value of the clip in USD (amount is already USD notional for MVP).
         let mid_usd = req.amount_usd;
         let _ = req.sell_base;
-        let _ = prices.base_usd / prices.quote_usd;
 
         let bid = self.book.best_for(&pair.id, req.amount_usd).await;
         let tier = tier_from_book(bid.is_some(), false);
 
         let (inner, bps) = match tier {
             SettlementTier::Takeover => self.quote_takeover(&pair, mid_usd, &bid.unwrap())?,
-            SettlementTier::Net => self.quote_orca_fallback(&pair, mid_usd)?, // net stub → orca
-            SettlementTier::OrcaFallback => self.quote_orca_fallback(&pair, mid_usd)?,
+            SettlementTier::Net => {
+                self.quote_orca_fallback(&pair, mid_usd, prices.base_usd, prices.quote_usd)
+                    .await?
+            }
+            SettlementTier::OrcaFallback => {
+                self.quote_orca_fallback(&pair, mid_usd, prices.base_usd, prices.quote_usd)
+                    .await?
+            }
         };
 
         if bps > pair.bps_cap {
@@ -98,7 +105,6 @@ impl QuoteEngine {
         bid: &acend_book::StandingBid,
     ) -> Result<(InnerQuote, f64)> {
         let (lending_usd, residual_usd) = split_notional(mid_usd, bid.preferred_ltv_bps);
-        // Takeover: residual is bidder equity — no pool fee; only auction spread.
         let spread_bps = bid.max_spread_bps.min(pair.bps_cap);
         let spread_usd = mid_usd * (spread_bps / 10_000.0);
         let breakdown = QuoteBreakdown {
@@ -119,15 +125,49 @@ impl QuoteEngine {
         ))
     }
 
-    fn quote_orca_fallback(&self, pair: &PairConfig, mid_usd: f64) -> Result<(InnerQuote, f64)> {
+    async fn quote_orca_fallback(
+        &self,
+        pair: &PairConfig,
+        mid_usd: f64,
+        base_price_usd: f64,
+        quote_price_usd: f64,
+    ) -> Result<(InnerQuote, f64)> {
         let lending = self
             .lending
             .quote(pair, mid_usd)
             .map_err(|e| AcendError::Compose(e.to_string()))?;
-        let orca = self
+
+        let model = self
             .orca
             .quote_residual(pair, mid_usd, DEFAULT_RESIDUAL_IMPACT_BPS)
             .map_err(|e| AcendError::Compose(e.to_string()))?;
+
+        let orca = match self
+            .orca
+            .quote_residual_live(
+                &self.rpc_url,
+                pair,
+                mid_usd,
+                base_price_usd,
+                quote_price_usd,
+            )
+            .await
+        {
+            Ok(q) if q.all_in_bps_of_full <= pair.bps_cap => q,
+            Ok(q) => {
+                warn!(
+                    pair = %pair.id,
+                    live_bps = q.all_in_bps_of_full,
+                    cap = pair.bps_cap,
+                    "live Orca quote exceeds cap (thin/mispriced pool); using model"
+                );
+                model
+            }
+            Err(e) => {
+                warn!(error = %e, pair = %pair.id, "live Orca quote failed; using model");
+                model
+            }
+        };
 
         let (lending_usd, residual_usd) = (lending.lending_usd, orca.residual_usd);
         let breakdown = QuoteBreakdown {

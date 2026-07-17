@@ -45,6 +45,7 @@ dependencies = [
  "clap",
  "serde",
  "serde_json",
+ "solana-sdk",
  "tokio",
  "tower-http",
  "tracing",
@@ -56,8 +57,10 @@ name = "acend-book"
 version = "0.1.0"
 dependencies = [
  "acend-core",
+ "anyhow",
  "chrono",
  "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "uuid",

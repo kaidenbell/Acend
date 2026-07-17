@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "acend-book"
 version.workspace = true
 edition.workspace = true
@@ -10,3 +10,6 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+

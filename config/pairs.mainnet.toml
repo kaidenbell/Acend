@@ -1,0 +1,22 @@
+# AcendCredit mainnet — mint-aligned SOL/USDC LFRS
+# ACEND_PAIRS_CONFIG=config/pairs.mainnet.toml
+# ACEND_RPC_URL=https://api.mainnet-beta.solana.com
+# ACEND_MFI_ENV=production
+
+cluster = "mainnet-beta"
+
+[[pairs]]
+id = "SOL/USDC"
+base = "SOL"
+quote = "USDC"
+max_size_usd = 150000
+bps_cap = 2.0
+ltv_bps = 8000
+base_mint = "So11111111111111111111111111111111111111112"
+quote_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+pyth_base = "Crypto.SOL/USD"
+pyth_quote = "Crypto.USDC/USD"
+orca_fee_bps = 4.0
+whirlpool = "Czfq3xZZDmsdGdUyrNLtRhGc47cXcZtLG4crryfu44zE"
+base_decimals = 9
+quote_decimals = 6
