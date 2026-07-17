@@ -3,248 +3,331 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AcendCredit API Docs</title>
+  <title>AcendCredit — AI Integration Spec</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #f3f0ea;
-      --bg2: #e7e2d8;
-      --ink: #1c2420;
-      --muted: #5c6a62;
-      --line: rgba(28, 36, 32, 0.12);
-      --accent: #1f6b4a;
-      --code-bg: #1c2420;
-      --code-ink: #e8efe9;
+      --bg: #f3f0ea; --bg2: #e7e2d8; --ink: #1c2420; --muted: #5c6a62;
+      --line: rgba(28, 36, 32, 0.12); --accent: #1f6b4a;
+      --code-bg: #1c2420; --code-ink: #e8efe9;
     }
     * { box-sizing: border-box; }
     body {
-      margin: 0;
-      color: var(--ink);
+      margin: 0; color: var(--ink);
       font-family: "Source Sans 3", system-ui, sans-serif;
       background:
         radial-gradient(900px 420px at 0% 0%, rgba(31, 107, 74, 0.10), transparent 60%),
-        radial-gradient(700px 380px at 100% 8%, rgba(28, 36, 32, 0.06), transparent 55%),
         linear-gradient(180deg, var(--bg), var(--bg2));
       line-height: 1.55;
     }
-    .wrap { max-width: 820px; margin: 0 auto; padding: 56px 22px 96px; }
-    .brand {
-      font-family: "Fraunces", Georgia, serif;
-      font-size: clamp(40px, 8vw, 64px);
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      margin: 0 0 10px;
-      line-height: 1;
+    .wrap { max-width: 880px; margin: 0 auto; padding: 48px 22px 96px; }
+    .brand { font-family: "Fraunces", Georgia, serif; font-size: clamp(36px, 7vw, 56px); font-weight: 600; margin: 0 0 8px; letter-spacing: -0.02em; }
+    .tag { color: var(--accent); font-weight: 600; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 20px; }
+    .lede { font-family: "Fraunces", Georgia, serif; font-size: clamp(20px, 3vw, 28px); font-weight: 500; margin: 0 0 12px; max-width: 22em; line-height: 1.25; }
+    .sub { color: var(--muted); margin: 0 0 28px; max-width: 42em; font-size: 16px; }
+    .pill {
+      display: inline-block; background: var(--code-bg); color: var(--code-ink);
+      font-family: "IBM Plex Mono", monospace; font-size: 13px; padding: 8px 12px; margin-bottom: 28px;
     }
-    .tag {
-      color: var(--accent);
-      font-weight: 600;
-      font-size: 14px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin: 0 0 28px;
-    }
-    .lede {
-      font-family: "Fraunces", Georgia, serif;
-      font-size: clamp(22px, 3.5vw, 30px);
-      font-weight: 500;
-      line-height: 1.25;
-      margin: 0 0 14px;
-      max-width: 18em;
-    }
-    .sub { color: var(--muted); margin: 0 0 40px; max-width: 38em; font-size: 17px; }
-    nav {
-      display: flex; flex-wrap: wrap; gap: 10px 18px;
-      padding: 16px 0 28px;
-      border-top: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-      margin-bottom: 40px;
-      font-size: 14px;
-    }
+    nav { display: flex; flex-wrap: wrap; gap: 10px 16px; padding: 14px 0 24px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: 36px; font-size: 14px; }
     nav a { color: var(--ink); text-decoration: none; font-weight: 500; }
     nav a:hover { color: var(--accent); }
-    section { margin-bottom: 44px; }
-    h2 {
-      font-family: "Fraunces", Georgia, serif;
-      font-size: 26px;
-      font-weight: 600;
-      margin: 0 0 10px;
-    }
-    h3 { font-size: 15px; font-weight: 600; margin: 22px 0 8px; letter-spacing: 0.02em; }
-    p, li { color: var(--muted); font-size: 16px; }
-    p strong, li strong { color: var(--ink); font-weight: 600; }
+    section { margin-bottom: 40px; }
+    h2 { font-family: "Fraunces", Georgia, serif; font-size: 24px; font-weight: 600; margin: 0 0 10px; }
+    h3 { font-size: 14px; font-weight: 600; margin: 20px 0 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+    p, li { color: var(--muted); font-size: 15px; }
+    p strong, li strong, td strong { color: var(--ink); font-weight: 600; }
     ol, ul { padding-left: 1.2em; margin: 8px 0 0; }
     li { margin: 6px 0; }
-    code, .mono {
-      font-family: "IBM Plex Mono", ui-monospace, monospace;
-      font-size: 0.9em;
-    }
+    code { font-family: "IBM Plex Mono", monospace; font-size: 0.9em; color: var(--ink); }
     pre {
-      background: var(--code-bg);
-      color: var(--code-ink);
-      padding: 16px 18px;
-      overflow-x: auto;
-      font-family: "IBM Plex Mono", ui-monospace, monospace;
-      font-size: 13px;
-      line-height: 1.55;
-      margin: 12px 0 0;
-      border-radius: 2px;
+      background: var(--code-bg); color: var(--code-ink); padding: 16px 18px; overflow-x: auto;
+      font-family: "IBM Plex Mono", monospace; font-size: 12.5px; line-height: 1.55; margin: 10px 0 0;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 12px;
-      font-size: 14px;
-    }
-    th, td {
-      text-align: left;
-      padding: 10px 8px;
-      border-bottom: 1px solid var(--line);
-      vertical-align: top;
-    }
-    th { color: var(--ink); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--ink); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
     td { color: var(--muted); }
-    td code { color: var(--ink); }
-    .note {
-      margin-top: 14px;
-      padding: 12px 0;
-      border-top: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 14px;
-    }
-    footer {
-      margin-top: 56px;
-      padding-top: 20px;
-      border-top: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 13px;
-    }
+    .callout { border-left: 3px solid var(--accent); padding: 8px 0 8px 14px; margin: 14px 0; color: var(--muted); font-size: 14px; }
+    footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
     a { color: var(--accent); }
   </style>
 </head>
 <body>
-  <main class="wrap">
-    <p class="brand">AcendCredit</p>
-    <p class="tag">Closer to mid</p>
-    <p class="lede">API docs for quotes, swaps, and live WebSocket prices.</p>
-    <p class="sub">
-      This host is your Railway API. Protected routes need an API key.
-      Your Vercel app should call these endpoints — not poll them blindly.
-    </p>
+<main class="wrap">
+  <p class="brand">AcendCredit</p>
+  <p class="tag">AI integration spec</p>
+  <p class="lede">Feed this page to your coding agent. Only missing input: the API key.</p>
+  <p class="sub">
+    AcendCredit is a credit-settled Solana swap API (LFRS). Most notional settles via lending LTV;
+    residual via Orca. The API runs on Railway. Your frontend on Vercel consumes it.
+    The API never holds wallets or sends transactions — it returns partially signed txs for the user wallet to sign.
+  </p>
+  <div class="pill">BASE_URL = https://acend-production.up.railway.app</div>
 
-    <nav>
-      <a href="#setup">Setup</a>
-      <a href="#auth">Auth</a>
-      <a href="#endpoints">Endpoints</a>
-      <a href="#websocket">WebSocket</a>
-      <a href="#vercel">Vercel</a>
-      <a href="#flow">Swap flow</a>
-    </nav>
+  <nav>
+    <a href="#agent">Agent brief</a>
+    <a href="#vercel">Vercel env</a>
+    <a href="#auth">Auth</a>
+    <a href="#rest">REST</a>
+    <a href="#ws">WebSocket</a>
+    <a href="#types">Types</a>
+    <a href="#flow">UX flow</a>
+    <a href="#code">Drop-in code</a>
+  </nav>
 
-    <section id="setup">
-      <h2>Railway setup</h2>
-      <ol>
-        <li>Networking → use your public URL <code>https://….up.railway.app</code> (not <code>.railway.internal</code>).</li>
-        <li>Variables → set the keys below, then redeploy.</li>
-        <li>Do not set <code>PORT</code> or <code>ACEND_BIND</code> — Railway owns the port.</li>
-      </ol>
-      <table>
-        <thead><tr><th>Variable</th><th>Purpose</th></tr></thead>
-        <tbody>
-          <tr><td><code>ACEND_API_KEY</code></td><td>Required. Rejects requests without this key.</td></tr>
-          <tr><td><code>ACEND_CORS_ORIGINS</code></td><td>Your Vercel origin(s), comma-separated.</td></tr>
-          <tr><td><code>ACEND_RPC_URL</code></td><td>Mainnet RPC (Helius/QuickNode). Keep private.</td></tr>
-          <tr><td><code>ACEND_PAIRS_CONFIG</code></td><td>Default: <code>config/pairs.mainnet.toml</code></td></tr>
-          <tr><td><code>ACEND_BIDS_CONFIG</code></td><td>Default: <code>config/standing-bids.deploy.json</code></td></tr>
-        </tbody>
-      </table>
-    </section>
+  <section id="agent">
+    <h2>1. Agent brief (do this)</h2>
+    <ol>
+      <li>Ask the human for <strong>ACEND_API_KEY</strong> only (they set it on Railway already).</li>
+      <li>Add Vercel env vars below (server-side preferred).</li>
+      <li>Add a small client module (see Drop-in code).</li>
+      <li>Wire swap UI: WebSocket for live quotes/prices; REST <code>/swap</code> only on confirm.</li>
+      <li>On confirm: deserialize <code>transaction_base64</code> → wallet signs fee-payer → <code>sendRawTransaction</code> / wallet adapter send.</li>
+      <li>Do <strong>not</strong> poll <code>/quote</code> on an interval from the browser. Use WebSocket.</li>
+      <li>Do <strong>not</strong> put the Helius/RPC URL in Vercel — only the Acend API URL + key.</li>
+      <li>Start test sizes around <strong>$2–$5</strong> USD notional on mainnet.</li>
+    </ol>
+    <div class="callout">
+      Pair to use: <code>SOL/USDC</code>. Cluster: mainnet-beta.
+      Public docs host: this page. Health: <code>GET /health</code> (no auth).
+    </div>
+  </section>
 
-    <section id="auth">
-      <h2>Authentication</h2>
-      <p>With <code>ACEND_API_KEY</code> set, protected routes return <strong>401</strong> without a key.</p>
-      <h3>REST</h3>
-      <pre>X-Acend-Key: YOUR_API_KEY
-# or
-Authorization: Bearer YOUR_API_KEY</pre>
-      <h3>WebSocket</h3>
-      <p>Browsers cannot set WS headers. Pass the key as a query param:</p>
-      <pre>wss://YOUR.up.railway.app/ws/quotes?key=YOUR_API_KEY&amp;pair=SOL/USDC&amp;amount_usd=5</pre>
-      <p class="note">Prefer keeping the key on the <strong>server</strong> (Next Route Handlers). A key in the browser or <code>?key=</code> can be copied from DevTools.</p>
-    </section>
+  <section id="vercel">
+    <h2>2. Vercel environment</h2>
+    <h3>Recommended (key stays on server)</h3>
+    <pre>ACEND_API_URL=https://acend-production.up.railway.app
+ACEND_API_KEY=&lt;PASTE_KEY_FROM_HUMAN&gt;</pre>
+    <p>Call Railway only from Next.js Route Handlers / Server Actions. Browser talks to your Next routes; Next adds <code>X-Acend-Key</code>.</p>
 
-    <section id="endpoints">
-      <h2>HTTP endpoints</h2>
-      <table>
-        <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Notes</th></tr></thead>
-        <tbody>
-          <tr><td>GET</td><td><code>/</code></td><td>No</td><td>This docs page</td></tr>
-          <tr><td>GET</td><td><code>/health</code></td><td>No</td><td>Railway healthcheck</td></tr>
-          <tr><td>GET</td><td><code>/quote</code></td><td>Yes</td><td><code>?pair=SOL/USDC&amp;amount_usd=5</code></td></tr>
-          <tr><td>GET</td><td><code>/swap</code></td><td>Yes</td><td><code>?pair=…&amp;amount_usd=…&amp;payer=&lt;wallet&gt;</code> — partially signed tx</td></tr>
-          <tr><td>GET</td><td><code>/ws/quotes</code></td><td>Yes</td><td>WebSocket upgrade</td></tr>
-          <tr><td>GET</td><td><code>/pairs</code></td><td>Yes</td><td>Configured pairs</td></tr>
-          <tr><td>GET</td><td><code>/bids</code></td><td>Yes</td><td>Standing bids</td></tr>
-          <tr><td>GET</td><td><code>/metrics</code></td><td>Yes</td><td>Process fill counters</td></tr>
-        </tbody>
-      </table>
+    <h3>Acceptable for early UI tests (key visible in DevTools)</h3>
+    <pre>NEXT_PUBLIC_ACEND_API_URL=https://acend-production.up.railway.app
+NEXT_PUBLIC_ACEND_API_KEY=&lt;PASTE_KEY_FROM_HUMAN&gt;</pre>
+    <p>Railway CORS must allow the Vercel origin (e.g. <code>https://your-app.vercel.app</code>). If CORS fails, tell the human to add that origin to Railway <code>ACEND_CORS_ORIGINS</code>.</p>
+  </section>
 
-      <h3>Quote example</h3>
-      <pre>curl -H "X-Acend-Key: YOUR_KEY" \
-  "https://YOUR.up.railway.app/quote?pair=SOL/USDC&amp;amount_usd=5"</pre>
+  <section id="auth">
+    <h2>3. Auth</h2>
+    <p>All app routes except <code>/</code> and <code>/health</code> require the key.</p>
+    <pre># REST headers (pick one)
+X-Acend-Key: &lt;ACEND_API_KEY&gt;
+Authorization: Bearer &lt;ACEND_API_KEY&gt;
 
-      <h3>Swap example</h3>
-      <pre>curl -H "X-Acend-Key: YOUR_KEY" \
-  "https://YOUR.up.railway.app/swap?pair=SOL/USDC&amp;amount_usd=5&amp;payer=WALLET_PUBKEY"</pre>
-      <p>Response includes <code>transaction_base64</code> and <code>needs_client_signature: true</code>. Your wallet signs the fee-payer and sends. Railway never holds keys or sends funds.</p>
-    </section>
+# WebSocket (browsers cannot set headers)
+wss://acend-production.up.railway.app/ws/quotes?key=&lt;ACEND_API_KEY&gt;&amp;pair=SOL/USDC&amp;amount_usd=5</pre>
+    <p>Missing/wrong key → <code>401 {"error":"unauthorized",...}</code></p>
+  </section>
 
-    <section id="websocket">
-      <h2>WebSocket — live quotes &amp; prices</h2>
-      <p>Subscribe once. Do <strong>not</strong> poll <code>/quote</code> from Vercel every second.</p>
-      <pre>wss://YOUR.up.railway.app/ws/quotes?key=YOUR_KEY&amp;pair=SOL/USDC&amp;amount_usd=5&amp;interval_ms=2000</pre>
-      <h3>Client → server</h3>
-      <pre>{"op":"subscribe","pair":"SOL/USDC","amount_usd":5,"interval_ms":2000}
+  <section id="rest">
+    <h2>4. REST endpoints</h2>
+    <p>Base: <code>https://acend-production.up.railway.app</code></p>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Query</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td>GET</td><td><code>/health</code></td><td>No</td><td>—</td><td>Liveness</td></tr>
+        <tr><td>GET</td><td><code>/quote</code></td><td>Yes</td><td><code>pair</code>, <code>amount_usd</code>, <code>sell_base</code> (default true)</td><td>One-shot quote (prefer WS for UI)</td></tr>
+        <tr><td>GET</td><td><code>/swap</code></td><td>Yes</td><td><code>pair</code>, <code>amount_usd</code>, <code>payer</code> (wallet pubkey), <code>path</code>=lfrs|residual, <code>strict</code></td><td>Compose partially signed tx</td></tr>
+        <tr><td>GET</td><td><code>/pairs</code></td><td>Yes</td><td>—</td><td>Configured pairs</td></tr>
+        <tr><td>GET</td><td><code>/bids</code></td><td>Yes</td><td>—</td><td>Standing bids</td></tr>
+        <tr><td>GET</td><td><code>/metrics</code></td><td>Yes</td><td>—</td><td>Fill counters</td></tr>
+        <tr><td>GET</td><td><code>/ws/quotes</code></td><td>Yes</td><td>WS upgrade + <code>key</code>, <code>pair</code>, <code>amount_usd</code>, <code>interval_ms</code></td><td>Live ticks</td></tr>
+      </tbody>
+    </table>
+
+    <h3>GET /quote</h3>
+    <pre>curl -s -H "X-Acend-Key: $ACEND_API_KEY" \
+  "https://acend-production.up.railway.app/quote?pair=SOL/USDC&amp;amount_usd=5"</pre>
+
+    <h3>GET /swap (call once on confirm)</h3>
+    <pre>curl -s -H "X-Acend-Key: $ACEND_API_KEY" \
+  "https://acend-production.up.railway.app/swap?pair=SOL/USDC&amp;amount_usd=5&amp;payer=WALLET_PUBKEY&amp;path=lfrs&amp;strict=true"</pre>
+    <p>Important response fields:</p>
+    <ul>
+      <li><code>transaction_base64</code> — bincode <code>VersionedTransaction</code></li>
+      <li><code>needs_client_signature</code> — true; client must sign fee-payer</li>
+      <li><code>simulated_ok</code> — with payer+strict, only true on clean sim</li>
+      <li><code>quote</code> — same shape as <code>/quote</code></li>
+      <li><code>recent_blockhash</code>, <code>stages</code>, <code>note</code></li>
+    </ul>
+  </section>
+
+  <section id="ws">
+    <h2>5. WebSocket protocol</h2>
+    <pre>wss://acend-production.up.railway.app/ws/quotes?key=$ACEND_API_KEY&amp;pair=SOL/USDC&amp;amount_usd=5&amp;interval_ms=2000</pre>
+    <p><code>interval_ms</code> clamped to 1000–10000 (default 2000).</p>
+
+    <h3>Client → server JSON</h3>
+    <pre>{"op":"subscribe","pair":"SOL/USDC","amount_usd":5,"interval_ms":2000,"sell_base":true}
 {"op":"set","amount_usd":10}
+{"op":"set","pair":"SOL/USDC","interval_ms":3000}
 {"op":"unsubscribe"}
 {"op":"ping"}</pre>
-      <h3>Server → client</h3>
-      <pre>{"type":"hello", ...}
+
+    <h3>Server → client JSON</h3>
+    <pre>{"type":"hello","service":"acend-api","default_interval_ms":2000}
 {"type":"subscribed","pair":"SOL/USDC","amount_usd":5,"interval_ms":2000}
-{"type":"tick","quote":{...},"pyth_base":...,"pyth_quote":...,"ts_ms":...}
+{"type":"tick","quote":{...Quote},"pyth_base":183.2,"pyth_quote":1.0,"ts_ms":1710000000000}
 {"type":"error","error":"..."}
 {"type":"pong"}</pre>
-      <p>Interval is clamped to <strong>1–10 seconds</strong> (default <strong>2s</strong>).</p>
-    </section>
+    <p>Use <code>tick.quote.bps_vs_mid</code>, <code>tick.quote.amount_out_usd</code>, <code>tick.pyth_base</code> (SOL/USD) for the UI.</p>
+  </section>
 
-    <section id="vercel">
-      <h2>Vercel wiring</h2>
-      <p><strong>Recommended</strong> (key stays server-side):</p>
-      <pre>ACEND_API_URL=https://acend-production.up.railway.app
-ACEND_API_KEY=same-as-railway
-ACEND_CORS_ORIGINS on Railway = https://your-app.vercel.app</pre>
-      <p>Call Railway from Next Route Handlers / Server Actions. Copy helper: <code>docs/client-examples/acend.ts</code> in the GitHub repo.</p>
-      <p><strong>Quick client test only</strong> (weaker):</p>
-      <pre>NEXT_PUBLIC_ACEND_API_URL=https://acend-production.up.railway.app
-NEXT_PUBLIC_ACEND_API_KEY=…</pre>
-    </section>
+  <section id="types">
+    <h2>6. Quote JSON shape</h2>
+    <pre>{
+  "id": "uuid",
+  "pair": "SOL/USDC",
+  "tier": "takeover" | "net" | "orca_fallback",
+  "amount_in_usd": 5.0,
+  "amount_out_usd": 4.999,
+  "mid_usd": 5.0,
+  "bps_vs_mid": 0.75,
+  "bps_cap": 2.0,
+  "pyth_base": 183.25,
+  "pyth_quote": 1.0,
+  "breakdown": {
+    "lending_usd": 4.0,
+    "residual_usd": 1.0,
+    "lending_pct": 80.0,
+    "residual_pct": 20.0,
+    "pool_fee_usd": 0.0,
+    "estimated_impact_usd": 0.0,
+    "auction_spread_usd": 0.0
+  },
+  "expires_at": "ISO-8601",
+  "cluster": "mainnet-beta"
+}</pre>
+  </section>
 
-    <section id="flow">
-      <h2>Recommended app flow</h2>
-      <ol>
-        <li>Open swap UI → connect WebSocket for live <code>tick</code>s (bps, out amount, Pyth prices).</li>
-        <li>User confirms → <code>GET /swap?payer=…</code> once.</li>
-        <li>Deserialize <code>transaction_base64</code> → wallet signs → <code>sendRawTransaction</code>.</li>
-        <li>Start with a couple dollars on mainnet.</li>
-      </ol>
-    </section>
+  <section id="flow">
+    <h2>7. Product UX flow</h2>
+    <ol>
+      <li><strong>Mount swap panel</strong> → open WebSocket with current pair + amount.</li>
+      <li><strong>User changes amount</strong> → send <code>{"op":"set","amount_usd":N}</code> (no reconnect).</li>
+      <li><strong>Render each tick</strong> → rate, bps vs mid, lending %, SOL price.</li>
+      <li><strong>User clicks Swap</strong> → <code>GET /swap?payer=&lt;pubkey&gt;&amp;amount_usd=N&amp;pair=SOL/USDC</code> with API key.</li>
+      <li><strong>If</strong> <code>transaction_base64</code> present and <code>needs_client_signature</code> → decode, sign with wallet, send.</li>
+      <li><strong>If</strong> sim fails / no tx → show <code>note</code> + <code>stages</code>; do not send.</li>
+      <li><strong>Unmount</strong> → close WebSocket.</li>
+    </ol>
+  </section>
 
-    <footer>
-      AcendCredit · <a href="/health">/health</a> ·
-      source <a href="https://github.com/kaidenbell/Acend">github.com/kaidenbell/Acend</a>
-    </footer>
-  </main>
+  <section id="code">
+    <h2>8. Drop-in TypeScript (copy into app)</h2>
+    <pre>const BASE = process.env.ACEND_API_URL
+  || process.env.NEXT_PUBLIC_ACEND_API_URL
+  || "https://acend-production.up.railway.app";
+const KEY = process.env.ACEND_API_KEY || process.env.NEXT_PUBLIC_ACEND_API_KEY || "";
+
+function headers(): HeadersInit {
+  return KEY ? { "X-Acend-Key": KEY } : {};
+}
+
+export async function acendQuote(pair: string, amountUsd: number) {
+  const q = new URLSearchParams({ pair, amount_usd: String(amountUsd) });
+  const r = await fetch(`${BASE}/quote?${q}`, { headers: headers() });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function acendSwap(opts: {
+  pair: string; amountUsd: number; payer: string; path?: string;
+}) {
+  const q = new URLSearchParams({
+    pair: opts.pair,
+    amount_usd: String(opts.amountUsd),
+    payer: opts.payer,
+    path: opts.path ?? "lfrs",
+    strict: "true",
+  });
+  const r = await fetch(`${BASE}/swap?${q}`, { headers: headers() });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json(); // { transaction_base64, needs_client_signature, quote, ... }
+}
+
+export function acendSubscribeQuotes(opts: {
+  pair: string; amountUsd: number; intervalMs?: number;
+  onTick: (msg: any) =&gt; void; onError?: (e: string) =&gt; void;
+}) {
+  const ms = Math.min(10000, Math.max(1000, opts.intervalMs ?? 2000));
+  const url = new URL(BASE.replace(/^http/, "ws") + "/ws/quotes");
+  url.searchParams.set("pair", opts.pair);
+  url.searchParams.set("amount_usd", String(opts.amountUsd));
+  url.searchParams.set("interval_ms", String(ms));
+  if (KEY) url.searchParams.set("key", KEY);
+
+  let ws: WebSocket | null = null;
+  let closed = false;
+  let retry = 1000;
+
+  const connect = () =&gt; {
+    if (closed) return;
+    ws = new WebSocket(url.toString());
+    ws.onopen = () =&gt; {
+      retry = 1000;
+      ws!.send(JSON.stringify({
+        op: "subscribe",
+        pair: opts.pair,
+        amount_usd: opts.amountUsd,
+        interval_ms: ms,
+      }));
+    };
+    ws.onmessage = (ev) =&gt; {
+      const msg = JSON.parse(String(ev.data));
+      if (msg.type === "tick") opts.onTick(msg);
+      if (msg.type === "error") opts.onError?.(msg.error);
+    };
+    ws.onclose = () =&gt; {
+      if (closed) return;
+      setTimeout(connect, retry);
+      retry = Math.min(15000, retry * 2);
+    };
+  };
+  connect();
+  return () =&gt; { closed = true; ws?.close(); };
+}</pre>
+
+    <h3>Next.js proxy pattern (keeps key off the client)</h3>
+    <pre>// app/api/acend/swap/route.ts
+import { NextRequest, NextResponse } from "next/server";
+
+export async function GET(req: NextRequest) {
+  const src = new URL(req.url);
+  const upstream = new URL("https://acend-production.up.railway.app/swap");
+  src.searchParams.forEach((v, k) =&gt; upstream.searchParams.set(k, v));
+  const r = await fetch(upstream, {
+    headers: { "X-Acend-Key": process.env.ACEND_API_KEY! },
+    cache: "no-store",
+  });
+  const body = await r.text();
+  return new NextResponse(body, {
+    status: r.status,
+    headers: { "content-type": "application/json" },
+  });
+}</pre>
+    <p>Same idea for <code>/api/acend/quote</code>. For WebSocket from the browser without exposing the key, either accept <code>?key=</code> for testing or terminate WS on your own server later.</p>
+  </section>
+
+  <section>
+    <h2>9. Hard rules for the coding agent</h2>
+    <ul>
+      <li>Always use base URL <code>https://acend-production.up.railway.app</code> unless env overrides it.</li>
+      <li>Always send the API key on protected routes.</li>
+      <li>Never commit the API key to git.</li>
+      <li>Never spam <code>/swap</code>; only on user confirm.</li>
+      <li>Never build a custom Solana program client for this — compose is already done by the API.</li>
+      <li>Transaction bytes are <strong>bincode</strong> VersionedTransaction (Solana), base64-encoded — use a Solana web3 decoder compatible with versioned txs.</li>
+    </ul>
+  </section>
+
+  <footer>
+    AcendCredit · live API
+    <code>https://acend-production.up.railway.app</code>
+    · <a href="/health">/health</a>
+  </footer>
+</main>
 </body>
 </html>
