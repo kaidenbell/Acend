@@ -47,6 +47,8 @@ cargo run -p acend-api
 
 Pass `payer` so the response is **partially signed** (`needs_client_signature: true`). Your app signs the fee-payer and sends.
 
+**Live quotes:** use `wss://…/ws/quotes` (see `docs/API.md` + `docs/client-examples/acend.ts`) — do not poll `/quote` from Vercel.
+
 ## Deploy on Railway (mainnet API)
 
 1. Railway → **New Project** → **Deploy from GitHub** → `kaidenbell/Acend`

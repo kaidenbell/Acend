@@ -4,7 +4,68 @@ Base URL (local): `http://127.0.0.1:8080`
 
 All JSON. CORS is open for local integration.
 
+## Connect from your Vercel app
+
+1. Set env on Vercel:
+
+```
+NEXT_PUBLIC_ACEND_API_URL=https://YOUR-SERVICE.up.railway.app
+```
+
+2. Copy `docs/client-examples/acend.ts` into your app (e.g. `lib/acend.ts`).
+
+3. **Live quotes / prices** — WebSocket (do not poll `/quote`):
+
+```ts
+const stop = subscribeAcendQuotes({
+  pair: "SOL/USDC",
+  amountUsd: 5,
+  intervalMs: 2000,
+  onTick: ({ quote, pyth_base }) => {
+    // update UI: quote.bps_vs_mid, quote.amount_out_usd, pyth_base (SOL/USD)
+  },
+})
+// on unmount: stop()
+```
+
+4. **Swap once** (user clicks confirm) — REST:
+
+```ts
+const payload = await fetchAcendSwap({
+  pair: "SOL/USDC",
+  amountUsd: 5,
+  payer: wallet.publicKey.toBase58(),
+})
+// deserialize payload.transaction_base64 → wallet.sign → sendRawTransaction
+```
+
+### `GET /ws/quotes` (WebSocket)
+
+Upgrade URL: `wss://YOUR-SERVICE.up.railway.app/ws/quotes?pair=SOL/USDC&amount_usd=5&interval_ms=2000`
+
+Client → server JSON:
+
+| Message | Purpose |
+|---|---|
+| `{"op":"subscribe","pair":"SOL/USDC","amount_usd":5,"interval_ms":2000}` | start stream |
+| `{"op":"set","amount_usd":10}` | change notional live |
+| `{"op":"unsubscribe"}` | stop ticks |
+| `{"op":"ping"}` | keepalive |
+
+Server → client:
+
+| `type` | Payload |
+|---|---|
+| `hello` | service info |
+| `subscribed` | pair / amount / interval |
+| `tick` | full `quote` + `pyth_base` / `pyth_quote` + `ts_ms` |
+| `error` | `{ error }` |
+| `pong` | reply to ping |
+
+Interval is clamped to **1–10 seconds** (default **2s**). Ticks do not inflate `/metrics` fill counters.
+
 ## `GET /health`
+
 
 ```json
 { "ok": true, "rpc": "solana … slot=…" }

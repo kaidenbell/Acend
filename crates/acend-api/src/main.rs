@@ -1,3 +1,5 @@
+mod ws;
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -46,10 +48,10 @@ struct Args {
 }
 
 #[derive(Clone)]
-struct AppState {
-    engine: Arc<QuoteEngine>,
-    composer: Arc<Composer>,
-    book: Arc<BidBook>,
+pub(crate) struct AppState {
+    pub(crate) engine: Arc<QuoteEngine>,
+    pub(crate) composer: Arc<Composer>,
+    pub(crate) book: Arc<BidBook>,
     fills: Arc<AtomicU64>,
     takeover: Arc<AtomicU64>,
     fallback: Arc<AtomicU64>,
@@ -94,6 +96,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(health))
         .route("/quote", get(quote))
         .route("/swap", get(swap))
+        .route("/ws/quotes", get(ws::ws_quotes))
         .route("/bids", get(bids))
         .route("/metrics", get(metrics))
         .route("/pairs", get(pairs))
